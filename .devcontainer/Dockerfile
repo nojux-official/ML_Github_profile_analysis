@@ -35,10 +35,10 @@ RUN apt-get update && apt-get install -y \
 RUN echo 'options(pkgType = "binary", repos = c(CRAN = "https://cran.r-project.org"))' >> /usr/local/lib/R/etc/Rprofile.site
 
 # Install pacman first for R package management
-RUN R --vanilla -e "install.packages('pacman')"
+RUN R --vanilla -e "options(repos='https://cran.r-project.org'); install.packages('pacman')"
 
 # Install BiocManager and Bioconductor packages
-RUN R --vanilla -e "install.packages('BiocManager')" && \
+RUN R --vanilla -e "options(repos='https://cran.r-project.org'); install.packages('BiocManager')" && \
     R --vanilla -e "BiocManager::install('EBImage', ask=FALSE)"
 
 # Install core required packages
@@ -56,5 +56,4 @@ WORKDIR /workspace
 RUN R --vanilla -e "library(torch); cat('✓ Torch R package ready\n')"
 
 # Set entrypoint to startup script
-ENTRYPOINT ["/opt/init.sh"]
 CMD ["/bin/bash"]
