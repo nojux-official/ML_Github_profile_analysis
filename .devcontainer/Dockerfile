@@ -22,11 +22,6 @@ RUN apt-get update && apt-get install -y \
     libfftw3-dev \
     # Version control
     git \
-    # Python and pip
-    python3 \
-    python3-pip \
-    python3-dev \
-    python3-venv \
     # Additional tools
     wget \
     curl \
@@ -35,25 +30,6 @@ RUN apt-get update && apt-get install -y \
     htop \
     pandoc \
     && rm -rf /var/lib/apt/lists/*
-
-# Create symbolic link for python
-RUN ln -s /usr/bin/python3 /usr/local/bin/python
-
-# Create a virtual environment for Python packages
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Install Python packages
-RUN /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    /opt/venv/bin/pip install --no-cache-dir \
-    "numpy<2.0" \
-    pandas \
-    scikit-learn \
-    matplotlib \
-    scipy \
-    requests \
-    torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu \
-    torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cpu
 
 # Enable binary packages for faster installation
 RUN echo 'options(pkgType = "binary", repos = c(CRAN = "https://cran.r-project.org"))' >> /usr/local/lib/R/etc/Rprofile.site
@@ -65,11 +41,12 @@ RUN R --vanilla -e "install.packages('pacman')"
 RUN R --vanilla -e "install.packages('BiocManager')" && \
     R --vanilla -e "BiocManager::install('EBImage', ask=FALSE)"
 
-# Install core required packages only
+# Install core required packages
 RUN R --vanilla -e "\
 pacman::p_load( \
   targets, tarchetypes, \
-  tidyr, jsonlite, reticulate, \
+  tidyr, jsonlite, \
+  torch, luz, torchvision, \
   repos='https://cran.r-project.org', \
   install=TRUE, update=FALSE, character.only=TRUE)"
 
@@ -77,22 +54,16 @@ pacman::p_load( \
 WORKDIR /workspace
 
 # Create startup script that installs missing packages dynamically
-COPY <<EOF /opt/init.sh
+RUN cat > /opt/init.sh << 'SCRIPT_EOF'
 #!/bin/bash
-# This script installs any missing packages without rebuilding the image
-echo "Checking for missing R packages..."
-R --vanilla -e "
-pacman::p_load(targets, tarchetypes, tidyr, jsonlite, reticulate, 
-               quiet=TRUE, warn.conflicts=FALSE, install=TRUE, update=FALSE, character.only=TRUE)
-cat('✓ Core packages ready\n')
-"
+echo "✓ ML environment ready (R 4.5 + Torch)"
 exec "$@"
-EOF
+SCRIPT_EOF
 
 RUN chmod +x /opt/init.sh
 
-# Pre-initialize PyTorch with R reticulate
-RUN R --vanilla -e "library(reticulate); use_python('/opt/venv/bin/python'); import('torch'); cat('✓ PyTorch ready\n')"
+# Test torch installation
+RUN R --vanilla -e "library(torch); cat('✓ Torch R package ready\n')"
 
 # Set entrypoint to startup script
 ENTRYPOINT ["/opt/init.sh"]
