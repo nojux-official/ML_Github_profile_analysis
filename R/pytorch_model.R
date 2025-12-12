@@ -43,7 +43,11 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   y_valid <- as.numeric(y_labels[valid_indices])
   valid_ids <- image_ids[valid_indices]
   
+  # Ensure y_valid is binary (0 or 1)
+  y_valid <- as.numeric(y_valid > 0)
+  
   cat("Training samples:", length(y_valid), "\n")
+  cat("Class distribution:", table(y_valid), "\n")
   
   # Convert to tensor format (N, 1, H, W)
   n_samples <- length(X_valid)
@@ -105,14 +109,15 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
         nnf_relu() %>%
         self$dropout() %>%
         self$fc2() %>%
-        torch_sigmoid()
+        torch_sigmoid() %>%
+        torch_clamp(0.001, 0.999)  # Clamp to valid BCE range
     }
   )
   
   # Setup and train model using luz
   fitted_model <- net %>%
     setup(
-      loss = nn_bce_loss(),
+      loss = nn_mse_loss(),  # Use MSE loss instead of BCE
       optimizer = optim_adam,
       metrics = list(
         luz_metric_mse()
