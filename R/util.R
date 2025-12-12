@@ -1,4 +1,5 @@
 source("R/constants.R")
+library(EBImage)
 
 pad_to_square <- function(vec, target_size = target_image_size) {
   n <- length(vec)
