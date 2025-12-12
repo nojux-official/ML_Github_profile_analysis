@@ -53,16 +53,6 @@ pacman::p_load( \
 # Set working directory
 WORKDIR /workspace
 
-# Create startup script that installs missing packages dynamically
-RUN cat > /opt/init.sh << 'SCRIPT_EOF'
-#!/bin/bash
-echo "✓ ML environment ready (R 4.5 + Torch)"
-exec "$@"
-SCRIPT_EOF
-
-RUN chmod +x /opt/init.sh
-
-# Test torch installation
 RUN R --vanilla -e "library(torch); cat('✓ Torch R package ready\n')"
 
 # Set entrypoint to startup script
