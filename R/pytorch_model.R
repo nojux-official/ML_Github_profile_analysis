@@ -1,16 +1,4 @@
-library(reticulate)
-
-# Initialize Python environment with PyTorch
-setup_pytorch <- function() {
-  # Check if torch is available, if not install
-  tryCatch({
-    torch <- import("torch")
-  }, error = function(e) {
-    cat("Installing PyTorch...\n")
-    py_install("torch", pip = TRUE)
-    py_install("torchvision", pip = TRUE)
-  })
-}
+# No need for reticulate - using native R torch package
 
 # Convert images to PyTorch tensors
 prepare_pytorch_data <- function(image_dir, target_image_size = 7) {

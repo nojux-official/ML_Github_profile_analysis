@@ -29,6 +29,10 @@ RUN apt-get update && apt-get install -y \
     pandoc \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y \
+    libglpk40 \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Set working directory
 WORKDIR /workspace

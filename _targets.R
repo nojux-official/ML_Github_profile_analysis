@@ -1,20 +1,14 @@
 # Prepare environment and load required libraries
 if("pacman" %in% rownames(installed.packages()) == F) install.packages("pacman")
-pacman::p_load(utf8, targets, tarchetypes, rmarkdown, dotenv, conflicted, pROC, doParallel)
-pacman::p_load(bs4Dash, gt, DT, pingr, shiny, shinybusy, shinycssloaders, shinyWidgets, visNetwork)
-if("DET" %in% rownames(installed.packages()) == F)
-  install.packages("https://cran.r-project.org/src/contrib/Archive/DET/DET_3.0.1.tar.gz", repos=NULL, type="source")
-
-
-# apt-get update && apt-get install -y libfftw3-dev
-
-# Install BiocManager and EBImage (Bioconductor package)
 if(!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 if(!require("EBImage", quietly = TRUE))
   BiocManager::install("EBImage")
 
-targetPackages <- c("tidyr", "jsonlite", "reticulate")
+# apt-get update && apt-get install -y libfftw3-dev libglpk40
+
+# Install torch packages for R
+targetPackages <- c("tidyr", "jsonlite", "torch", "luz", "torchvision", "torchdatasets")
 pacman::p_load(char = targetPackages)
 library(targets)
 
@@ -22,9 +16,6 @@ library(targets)
 lapply(list.files("./R", full.names = TRUE), source)
 options(tidyverse.quiet = TRUE)
 tar_option_set(packages = targetPackages)
-
-# Setup PyTorch after loading R files
-setup_pytorch()
 
 # Targets pipeline
 list(
@@ -34,20 +25,7 @@ list(
   
   tar_target(git_features_data, load_json_features(f_musae_git_features)),
   
-  tar_target(git_features_images, apply_transformation(git_features_data)),
+  tar_target(git_features_images, apply_transformation(git_features_data))
   
-  tar_target(target_labels, load_target_data(f_musae_git_target)),
   
-  tar_target(images_arrays, prepare_pytorch_data(out_dir, target_image_size)),
-  
-  tar_target(pytorch_predictions, 
-    train_pytorch_cnn(
-      images_arrays$images, 
-      images_arrays$ids, 
-      target_labels, 
-      epochs = 10,
-      batch_size = 32,
-      learning_rate = 0.001
-    )
-  )
 )
