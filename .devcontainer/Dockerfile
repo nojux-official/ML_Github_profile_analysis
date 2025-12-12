@@ -41,19 +41,8 @@ RUN R --vanilla -e "options(repos='https://cran.r-project.org'); install.package
 RUN R --vanilla -e "options(repos='https://cran.r-project.org'); install.packages('BiocManager')" && \
     R --vanilla -e "BiocManager::install('EBImage', ask=FALSE)"
 
-# Install core required packages
-RUN R --vanilla -e "\
-pacman::p_load( \
-  targets, tarchetypes, \
-  tidyr, jsonlite, \
-  torch, luz, torchvision, \
-  repos='https://cran.r-project.org', \
-  install=TRUE, update=FALSE, character.only=TRUE)"
-
 # Set working directory
 WORKDIR /workspace
-
-RUN R --vanilla -e "library(torch); cat('✓ Torch R package ready\n')"
 
 # Set entrypoint to startup script
 CMD ["/bin/bash"]
