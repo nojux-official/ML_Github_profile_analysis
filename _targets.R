@@ -31,5 +31,17 @@ list(
   
   tar_target(git_features_data, load_json_features(f_musae_git_features)),
   
-  tar_target(git_features_images, apply_transformation(git_features_data))
+  tar_target(git_features_images, apply_transformation(git_features_data)),
+  
+  tar_target(target_labels, load_target_data(f_musae_git_target)),
+  
+  tar_target(images_features, images_to_features(out_dir, target_image_size)),
+  
+  tar_target(predictions, 
+    train_and_predict(
+      images_features$features, 
+      images_features$ids, 
+      target_labels
+    )
+  )
 )
