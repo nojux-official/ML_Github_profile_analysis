@@ -1,5 +1,5 @@
 {
-  "name": "R Development Environment",
+  "name": "ML GitHub Profile Analysis",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
@@ -9,12 +9,9 @@
     "vscode": {
       "extensions": [
         "REditorSupport.r",
-        "ms-python.python",
-        "ms-python.debugpy",
-        "ms-toolsai.jupyter",
-        "quarto-dev.quarto",
         "RDebugger.r-debugger",
-        "ms-vscode.vscode-json"
+        "ms-python.python",
+        "ms-toolsai.jupyter"
       ],
       "settings": {
         "r.rterm.linux": "/usr/local/bin/R",
@@ -28,7 +25,7 @@
       }
     }
   },
-  "postCreateCommand": "/bin/bash .devcontainer/install-packages.sh",
+  "postCreateCommand": "R --vanilla -e \"cat('✓ Container ready for development\\n')\"",
   "remoteUser": "root",
   "mounts": [
     "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"

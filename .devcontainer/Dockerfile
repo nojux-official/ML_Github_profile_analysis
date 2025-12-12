@@ -1,5 +1,5 @@
-# Use R image based on Ubuntu instead of Debian sid
-FROM rocker/r-ver:4.3.2
+# Use R 4.5 image based on Ubuntu
+FROM rocker/r-ver:4.5
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,7 +9,6 @@ ENV CRAN_MIRROR=https://cran.r-project.org
 RUN apt-get update && apt-get install -y \
     # Build tools
     build-essential \
-    cmake \
     gfortran \
     # System libraries needed for R packages
     libcurl4-openssl-dev \
@@ -17,17 +16,10 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libcairo2-dev \
     libxt-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
     libfreetype6-dev \
     libpng-dev \
-    libtiff5-dev \
     libjpeg-dev \
-    libfontconfig1-dev \
-    # Database drivers
-    libpq-dev \
-    libmariadb-dev \
-    unixodbc-dev \
+    libfftw3-dev \
     # Version control
     git \
     # Python and pip
@@ -41,6 +33,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     htop \
+    pandoc \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symbolic link for python
@@ -50,42 +43,57 @@ RUN ln -s /usr/bin/python3 /usr/local/bin/python
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Activate virtual environment and install Python packages for data science
-RUN /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+# Install Python packages
+RUN /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install --no-cache-dir \
     "numpy<2.0" \
     pandas \
     scikit-learn \
     matplotlib \
-    seaborn \
-    jupyter \
-    notebook \
-    jupyterlab \
-    tensorflow \
-    keras \
     scipy \
-    plotly \
-    dash \
-    streamlit \
     requests \
-    beautifulsoup4 \
-    openpyxl \
-    xlrd
+    torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu \
+    torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cpu
 
-# Install R packages using install.packages first (pacman dependency)
-RUN R -e "install.packages('pacman', repos='https://cran.r-project.org')"
+# Enable binary packages for faster installation
+RUN echo 'options(pkgType = "binary", repos = c(CRAN = "https://cran.r-project.org"))' >> /usr/local/lib/R/etc/Rprofile.site
+
+# Install pacman first for R package management
+RUN R --vanilla -e "install.packages('pacman')"
+
+# Install BiocManager and Bioconductor packages
+RUN R --vanilla -e "install.packages('BiocManager')" && \
+    R --vanilla -e "BiocManager::install('EBImage', ask=FALSE)"
+
+# Install core required packages only
+RUN R --vanilla -e "\
+pacman::p_load( \
+  targets, tarchetypes, \
+  tidyr, jsonlite, reticulate, \
+  repos='https://cran.r-project.org', \
+  install=TRUE, update=FALSE, character.only=TRUE)"
 
 # Set working directory
 WORKDIR /workspace
 
-# Copy package installation script
-COPY install-packages.sh /install-packages.sh
-RUN chmod +x /install-packages.sh
+# Create startup script that installs missing packages dynamically
+COPY <<EOF /opt/init.sh
+#!/bin/bash
+# This script installs any missing packages without rebuilding the image
+echo "Checking for missing R packages..."
+R --vanilla -e "
+pacman::p_load(targets, tarchetypes, tidyr, jsonlite, reticulate, 
+               quiet=TRUE, warn.conflicts=FALSE, install=TRUE, update=FALSE, character.only=TRUE)
+cat('✓ Core packages ready\n')
+"
+exec "$@"
+EOF
 
-# Install R packages
-RUN /install-packages.sh
+RUN chmod +x /opt/init.sh
 
-RUN apt update && apt install -y pandoc libglpk40 libzmq5
+# Pre-initialize PyTorch with R reticulate
+RUN R --vanilla -e "library(reticulate); use_python('/opt/venv/bin/python'); import('torch'); cat('✓ PyTorch ready\n')"
 
-# Set default command
+# Set entrypoint to startup script
+ENTRYPOINT ["/opt/init.sh"]
 CMD ["/bin/bash"]
