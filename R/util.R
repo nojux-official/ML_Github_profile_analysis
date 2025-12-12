@@ -56,8 +56,9 @@ load_target_data <- function(filepath) {
   # Load target labels from CSV
   target_df <- read.csv(filepath)
   
-  # Convert to named numeric vector (id -> target)
-  target_vector <- setNames(target_df[[2]], target_df[[1]])
+  # Convert to named numeric vector (id -> ml_target)
+  # Column 1 is id, column 3 is ml_target
+  target_vector <- setNames(as.numeric(target_df[[3]]), target_df[[1]])
   
   return(target_vector)
 }

@@ -2,6 +2,51 @@ source("R/constants.R")
 library(torch)
 library(luz)
 
+# Simple CNN for 6x6 grayscale image classification
+create_simple_cnn <- function() {
+  nn_module(
+    "SimpleCNN",
+    initialize = function() {
+      self$conv1 <- nn_conv2d(1, 16, kernel_size = 3, padding = 1)
+      self$bn1 <- nn_batch_norm2d(16)
+      self$pool <- nn_max_pool2d(2, 2)
+      self$conv2 <- nn_conv2d(16, 32, kernel_size = 3, padding = 1)
+      self$bn2 <- nn_batch_norm2d(32)
+      
+      # After 2 pooling layers: 6 -> 3 -> 1
+      flat_size <- 32 * 1 * 1
+      
+      self$fc1 <- nn_linear(flat_size, 64)
+      self$dropout <- nn_dropout(p = 0.3)
+      self$fc2 <- nn_linear(64, 1)
+      
+      # Initialize weights with smaller values
+      nn_init_kaiming_normal_(self$conv1$weight)
+      nn_init_kaiming_normal_(self$conv2$weight)
+      nn_init_xavier_uniform_(self$fc1$weight)
+      nn_init_xavier_uniform_(self$fc2$weight)
+      
+      nn_init_constant_(self$fc2$bias, 0)
+    },
+    forward = function(x) {
+      x %>%
+        self$conv1() %>%
+        self$bn1() %>%
+        nnf_relu() %>%
+        self$pool() %>%
+        self$conv2() %>%
+        self$bn2() %>%
+        nnf_relu() %>%
+        self$pool() %>%
+        torch_flatten(start_dim = 2) %>%
+        self$fc1() %>%
+        nnf_relu() %>%
+        self$dropout() %>%
+        self$fc2()
+    }
+  )
+}
+
 # Convert images to torch tensors
 prepare_pytorch_data <- function(image_dir, target_image_size = 6) {
   png_files <- list.files(image_dir, pattern = "\\.png$", full.names = TRUE)
@@ -17,14 +62,22 @@ prepare_pytorch_data <- function(image_dir, target_image_size = 6) {
   
   for (i in seq_along(png_files)) {
     img <- EBImage::readImage(png_files[i])
+    
+    # Extract grayscale channel if multichannel
+    if (length(dim(img)) > 2) {
+      img <- img[, , 1]
+    }
+    
+    # Resize to target size
     img <- EBImage::resize(img, w = target_image_size, h = target_image_size)
     
     # Extract filename (ID)
     filename <- basename(png_files[i])
     image_ids[i] <- gsub("entry_|.png", "", filename)
     
-    # Store as matrix (normalized)
-    img_matrix <- as.matrix(img)[1:target_image_size, 1:target_image_size]
+    # Convert to matrix and ensure values in [0, 1]
+    img_matrix <- as.matrix(img)
+    img_matrix <- pmin(pmax(img_matrix, 0), 1)
     images_list[[i]] <- img_matrix
   }
   
@@ -33,7 +86,7 @@ prepare_pytorch_data <- function(image_dir, target_image_size = 6) {
 
 # Build and train CNN using native R torch
 train_pytorch_cnn <- function(images_list, image_ids, targets, 
-                             epochs = 10, batch_size = 32, learning_rate = 0.001) {
+                             epochs = 20, batch_size = 32, learning_rate = 0.0001) {
   
   # Prepare data
   y_labels <- targets[image_ids]
@@ -59,6 +112,12 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
     X_array[i, 1, , ] <- X_valid[[i]]
   }
   
+  # Standardize input data
+  mean_val <- mean(X_array)
+  std_val <- sd(as.numeric(X_array))
+  if (std_val < 1e-6) std_val <- 1  # Avoid division by zero
+  X_array <- (X_array - mean_val) / std_val
+  
   X_tensor <- torch_tensor(X_array, dtype = torch_float32())
   y_tensor <- torch_tensor(y_valid, dtype = torch_float32())$unsqueeze(2)
   
@@ -80,48 +139,14 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   train_ds <- dataset(X_tensor, y_tensor)
   train_dl <- torch::dataloader(train_ds, batch_size = batch_size, shuffle = TRUE)
   
-  # Define CNN model
-  net <- nn_module(
-    "CNN",
-    initialize = function() {
-      self$conv1 <- nn_conv2d(1, 16, kernel_size = 3, padding = 1)
-      self$pool <- nn_max_pool2d(2, 2)
-      self$conv2 <- nn_conv2d(16, 32, kernel_size = 3, padding = 1)
-      
-      # Calculate flattened size after pooling
-      # Input: (H, W) -> after conv1+pool: (H/2, W/2) -> after conv2+pool: (H/4, W/4)
-      flat_size <- 32 * (h %/% 4) * (w %/% 4)
-      
-      self$fc1 <- nn_linear(flat_size, 64)
-      self$dropout <- nn_dropout(p = 0.3)
-      self$fc2 <- nn_linear(64, 1)
-    },
-    forward = function(x) {
-      x %>%
-        self$conv1() %>%
-        nnf_relu() %>%
-        self$pool() %>%
-        self$conv2() %>%
-        nnf_relu() %>%
-        self$pool() %>%
-        torch_flatten(start_dim = 2) %>%
-        self$fc1() %>%
-        nnf_relu() %>%
-        self$dropout() %>%
-        self$fc2() %>%
-        torch_sigmoid() %>%
-        torch_clamp(0.001, 0.999)  # Clamp to valid BCE range
-    }
-  )
+  # Create and train model
+  model <- create_simple_cnn()
   
   # Setup and train model using luz
-  fitted_model <- net %>%
+  fitted_model <- model %>%
     setup(
-      loss = nn_mse_loss(),  # Use MSE loss instead of BCE
-      optimizer = optim_adam,
-      metrics = list(
-        luz_metric_mse()
-      )
+      loss = nn_mse_loss(),
+      optimizer = optim_adam
     ) %>%
     fit(
       data = train_dl,
@@ -130,16 +155,18 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
     )
   
   # Get trained model
-  model <- fitted_model$model
+  trained_model <- fitted_model$model
   
   # Make predictions on full dataset
-  model$eval()
+  trained_model$eval()
   with_no_grad({
-    predictions <- model(X_tensor)
+    predictions <- trained_model(X_tensor)
   })
   
   predictions_numeric <- as.numeric(predictions)
-  pred_binary <- ifelse(predictions_numeric > 0.5, 1, 0)
+  # Apply sigmoid for probability and threshold at 0.5
+  predictions_prob <- 1 / (1 + exp(-predictions_numeric))
+  pred_binary <- ifelse(predictions_prob > 0.5, 1, 0)
   
   # Calculate accuracy
   accuracy <- mean(pred_binary == y_valid)
@@ -149,11 +176,11 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
     id = valid_ids,
     actual = y_valid,
     predicted = pred_binary,
-    probability = predictions_numeric
+    probability = predictions_prob
   )
   
   return(list(
-    model = model,
+    model = trained_model,
     results = results,
     accuracy = accuracy,
     fitted = fitted_model
