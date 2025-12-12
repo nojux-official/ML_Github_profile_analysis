@@ -14,14 +14,19 @@ data <- list(
 )
 
 # ============================
-# Helper: pad to nearest square
+# Helper: pad to fixed 7x7 size
 # ============================
-pad_to_square <- function(vec) {
+target_size <- 7
+pad_to_square <- function(vec, target_size = 7) {
   n <- length(vec)
-  side <- ceiling(sqrt(n))       # nearest square dimension
-  new_len <- side * side
-  padded <- c(vec, rep(0, new_len - n))
-  list(values = padded, side = side)
+  new_len <- target_size * target_size
+  # Truncate if too long, pad if too short
+  if (n > new_len) {
+    padded <- vec[1:new_len]
+  } else {
+    padded <- c(vec, rep(0, new_len - n))
+  }
+  list(values = padded, side = target_size)
 }
 
 # Output directory

@@ -1,11 +1,15 @@
 source("R/constants.R")
 
-pad_to_square <- function(vec) {
+pad_to_square <- function(vec, target_size = target_image_size) {
   n <- length(vec)
-  side <- ceiling(sqrt(n))       # nearest square dimension
-  new_len <- side * side
-  padded <- c(vec, rep(0, new_len - n))
-  list(values = padded, side = side)
+  new_len <- target_size * target_size
+  # Truncate if too long, pad if too short
+  if (n > new_len) {
+    padded <- vec[1:new_len]
+  } else {
+    padded <- c(vec, rep(0, new_len - n))
+  }
+  list(values = padded, side = target_size)
 }
 
 load_json_features <- function(filepath) {
