@@ -25,7 +25,18 @@ list(
   
   tar_target(git_features_data, load_json_features(f_musae_git_features)),
   
-  tar_target(git_features_images, apply_transformation(git_features_data))
+  tar_target(git_features_images, apply_transformation(git_features_data)),
   
+  tar_target(target_labels, load_target_data(f_musae_git_target)),
   
+  tar_target(image_data, prepare_pytorch_data(git_features_images)),
+  
+  tar_target(cnn_model, train_pytorch_cnn(
+    image_data$images,
+    image_data$ids,
+    target_labels,
+    epochs = 20,
+    batch_size = 16,
+    learning_rate = 0.001
+  ))
 )

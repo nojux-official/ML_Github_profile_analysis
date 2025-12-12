@@ -48,4 +48,16 @@ apply_transformation <- function(data) {
 
         cat("Saved:", filepath, "(", side, "x", side, ")\n")
     }
+    
+    return(out_dir)
+}
+
+load_target_data <- function(filepath) {
+  # Load target labels from CSV
+  target_df <- read.csv(filepath)
+  
+  # Convert to named numeric vector (id -> target)
+  target_vector <- setNames(target_df[[2]], target_df[[1]])
+  
+  return(target_vector)
 }
