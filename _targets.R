@@ -1,15 +1,27 @@
 if("pacman" %in% rownames(installed.packages()) == F) install.packages("pacman")
+if(!require("targets", quietly = TRUE))
+  install.packages("targets")
+
 if(!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 if(!require("EBImage", quietly = TRUE))
   BiocManager::install("EBImage")
 if("shiny" %in% rownames(installed.packages()) == F)
   install.packages("https://cran.r-project.org/src/contrib/shiny_1.12.1.tar.gz", repos=NULL, type="source")
-if(!require("targets", quietly = TRUE))
-  install.packages("targets")
 
-targetPackages <- c("tidyr", "jsonlite", 
-    "torch", "luz", "torchvision", "torchdatasets", "plumber")
+if(!require("rmarkdown", quietly = TRUE))
+  install.packages("rmarkdown")
+if("DET" %in% rownames(installed.packages()) == F)
+  install.packages("https://cran.r-project.org/src/contrib/Archive/DET/DET_3.0.1.tar.gz", repos=NULL, type="source")
+if("future.apply" %in% rownames(installed.packages()) == F)
+  install.packages("https://cran.r-project.org/src/contrib/future.apply_1.20.1.tar.gz", repos=NULL, type="source")
+
+targetPackages <- c("tidyverse", "jsonlite", "tarchetypes",
+    "torch", "luz", "torchvision", "torchdatasets", 
+    "DT", "httr", "plumber", "shiny",
+    "rmarkdown", "DET", "pROC", "ggplot2", "dplyr",
+    "lattice", "e1071", "caret", "future.apply")
+
 pacman::p_load(char = targetPackages)
 
 torch::install_torch()
@@ -128,5 +140,6 @@ list(
       data.frame(test_image = "No test images found", prediction = NA)
     }
     unlink("cache/", recursive = TRUE)
-  })
+  }),
+  tar_render(report, "report.Rmd")
 )

@@ -1,0 +1,336 @@
+---
+title: "CNN Image Classification Model - Performance Report"
+subtitle: "Github Profile Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+
+# Load required libraries
+library(tidyverse)
+library(caret)
+library(pROC)
+library(DET)
+library(ggplot2)
+library(dplyr)
+
+# Source helper functions
+lapply(list.files("./R", full.names = TRUE), source)
+```
+
+# Executive Summary
+
+This report presents the performance evaluation of the CNN image classification model trained on Github profile features. The model is designed to classify nodes based on their feature representations transformed into 6x6 grayscale images.
+
+---
+
+# 1. Model Configuration & Data
+
+```{r model-config, eval=FALSE}
+# Load targets results
+targets::tar_load(cnn_model)
+targets::tar_load(test_single_prediction)
+targets::tar_load(single_prediction)
+
+# Model architecture:
+# - Input: 6x6 grayscale images
+# - Conv Layer 1: 1 → 16 filters (3x3 kernel, ReLU, Max Pool)
+# - Conv Layer 2: 16 → 32 filters (3x3 kernel, ReLU, Max Pool)
+# - FC Layer 1: 32 → 64 neurons (ReLU, Dropout 0.3)
+# - FC Layer 2: 64 → 1 neuron (Binary output)
+# - Loss: MSE
+# - Optimizer: Adam (lr=0.001)
+```
+
+**Training Parameters:**
+- Epochs: 2
+- Batch Size: 16
+- Learning Rate: 0.001
+- Threshold: 0.5
+
+---
+
+# 2. Performance Metrics
+
+```{r performance-metrics, eval=FALSE}
+# This section loads predictions and calculates metrics
+# predictions <- tar_read(single_prediction)
+
+# Create confusion matrix
+calculate_metrics <- function(actual, predicted) {
+  cm <- confusionMatrix(factor(predicted), factor(actual))
+  
+  metrics <- list(
+    accuracy = cm$overall['Accuracy'],
+    sensitivity = cm$byClass['Sensitivity'],
+    specificity = cm$byClass['Specificity'],
+    precision = cm$byClass['Pos Pred Value'],
+    f1 = cm$byClass['F1'],
+    balanced_accuracy = cm$byClass['Balanced Accuracy']
+  )
+  
+  return(metrics)
+}
+```
+
+```{r metrics-table}
+# Performance Metrics Summary
+metrics_df <- data.frame(
+  Metric = c("Accuracy", "Sensitivity (Recall)", "Specificity", "Precision", "F1-Score", "Balanced Accuracy"),
+  Value = c(NA, NA, NA, NA, NA, NA),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(metrics_df, caption = "Model Performance Metrics")
+```
+
+---
+
+# 3. ROC Curve Analysis
+
+```{r roc-curve, eval=FALSE}
+# ROC Curve Calculation and Visualization
+roc_curve <- function(actual, predicted_probs) {
+  roc_obj <- roc(actual, predicted_probs, 
+                 levels = c(0, 1), direction = "<")
+  return(roc_obj)
+}
+
+# Example ROC curve plot
+ggplot_roc <- function(roc_obj) {
+  roc_df <- data.frame(
+    fpr = 1 - roc_obj$specificities,
+    tpr = roc_obj$sensitivities
+  )
+  
+  ggplot(roc_df, aes(x = fpr, y = tpr)) +
+    geom_path(linewidth = 1, color = "#2E86AB") +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray") +
+    labs(
+      title = "ROC Curve",
+      x = "False Positive Rate",
+      y = "True Positive Rate",
+      subtitle = paste0("AUC = ", round(roc_obj$auc, 3))
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(face = "bold", size = 14),
+      plot.subtitle = element_text(size = 12)
+    )
+}
+```
+
+```{r roc-plot}
+# ROC Curve Placeholder
+plot.new()
+text(0.5, 0.5, "ROC Curve\n(Requires prediction data)", 
+     cex = 2, col = "gray50", adj = c(0.5, 0.5))
+```
+
+**AUC Value:** [To be calculated from predictions]
+
+---
+
+# 4. DET Curve Analysis
+
+```{r det-curve, eval=FALSE}
+# Detection Error Tradeoff (DET) Curve
+det_curve <- function(actual, predicted_probs) {
+  # DET curve shows false negative rate vs false positive rate
+  # Generated using DET package
+  
+  # Create ROC object for DET visualization
+  roc_obj <- roc(actual, predicted_probs)
+  
+  # Extract rates
+  fnr <- 1 - roc_obj$sensitivities  # False Negative Rate
+  fpr <- 1 - roc_obj$specificities  # False Positive Rate
+  
+  return(list(fnr = fnr, fpr = fpr))
+}
+```
+
+```{r det-plot}
+# DET Curve Placeholder
+plot.new()
+text(0.5, 0.5, "DET Curve\n(Requires prediction data)", 
+     cex = 2, col = "gray50", adj = c(0.5, 0.5))
+```
+
+**DET Curve Interpretation:**
+- Shows the tradeoff between False Negative Rate and False Positive Rate
+- Lower curves indicate better performance
+- Operating point selection based on application requirements
+
+---
+
+# 5. AUC Analysis
+
+```{r auc-analysis}
+# Area Under the Curve (AUC) Summary
+auc_summary <- data.frame(
+  Metric = c("AUC", "95% CI Lower", "95% CI Upper", "Interpretation"),
+  Value = c("TBD", "TBD", "TBD", "To be calculated from test predictions")
+)
+
+knitr::kable(auc_summary, caption = "AUC Statistics")
+```
+
+**AUC Interpretation Guide:**
+- 0.90 - 1.00: Excellent discrimination
+- 0.80 - 0.90: Good discrimination
+- 0.70 - 0.80: Fair discrimination
+- 0.60 - 0.70: Poor discrimination
+- 0.50 - 0.60: Fail discrimination
+
+---
+
+# 6. Variable Importance
+
+```{r variable-importance, eval=FALSE}
+# Feature Importance Analysis
+# For CNN models, importance can be derived from:
+# 1. Layer activation analysis
+# 2. Gradient-based importance
+# 3. Feature attribution methods
+
+get_feature_importance <- function(model) {
+  # Extract weights from model layers
+  # This would require custom implementation based on torch model
+  
+  importance <- data.frame(
+    layer = c("Conv1 Filters", "Conv2 Filters", "FC1 Weights"),
+    mean_weight = c(NA, NA, NA),
+    std_weight = c(NA, NA, NA)
+  )
+  
+  return(importance)
+}
+```
+
+```{r importance-plot}
+# Variable Importance Plot
+importance_df <- data.frame(
+  Feature = c("Conv Layer 1", "Conv Layer 2", "FC Layer 1"),
+  Importance = c(NA, NA, NA),
+  stringsAsFactors = FALSE
+)
+
+ggplot(importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_col(fill = "#2E86AB", alpha = 0.8) +
+  coord_flip() +
+  labs(
+    title = "Feature/Layer Importance",
+    x = "Layer",
+    y = "Importance Score"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+```{r importance-table}
+knitr::kable(importance_df, caption = "Layer Importance Scores")
+```
+
+---
+
+# 7. Confusion Matrix
+
+```{r confusion-matrix, eval=FALSE}
+# Confusion Matrix Visualization
+confusion_matrix <- caret::confusionMatrix(predicted, actual)
+
+# Create heatmap
+cm_df <- as.data.frame(confusion_matrix$table)
+
+ggplot(cm_df, aes(x = Prediction, y = Reference, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), color = "white", size = 5) +
+  scale_fill_gradient(low = "lightblue", high = "#2E86AB") +
+  labs(title = "Confusion Matrix") +
+  theme_minimal()
+```
+
+---
+
+# 8. Predictions Detail
+
+```{r predictions-detail, eval=FALSE}
+# Show detailed predictions with confidence intervals
+predictions_detail <- tar_read(single_prediction)
+
+if (!is.null(predictions_detail)) {
+  knitr::kable(
+    head(predictions_detail, 20),
+    caption = "Sample Predictions with Probabilities"
+  )
+}
+```
+
+---
+
+# 9. Model Diagnosis
+
+## Training Convergence
+
+```{r training-convergence}
+plot.new()
+text(0.5, 0.5, "Training Convergence Plot\n(Loss over epochs)", 
+     cex = 2, col = "gray50", adj = c(0.5, 0.5))
+```
+
+## Class Distribution
+
+```{r class-distribution}
+class_dist <- data.frame(
+  Class = c("Negative (0)", "Positive (1)"),
+  Count = c(NA, NA),
+  Percentage = c(NA, NA)
+)
+
+ggplot(class_dist, aes(x = Class, y = Count, fill = Class)) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = paste0(Percentage, "%")), vjust = -0.5) +
+  scale_fill_manual(values = c("#A23B72", "#2E86AB")) +
+  labs(title = "Target Class Distribution", y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "none", plot.title = element_text(face = "bold"))
+```
+
+---
+
+# 10. Recommendations & Conclusions
+
+## Key Findings
+
+- Model performance to be evaluated on held-out test set
+- ROC/DET curves provide guidance for threshold optimization
+- Consider application-specific requirements (sensitivity vs specificity tradeoff)
+
+## Next Steps
+
+1. Evaluate on full validation set
+2. Perform cross-validation for robustness assessment
+3. Consider threshold optimization based on business requirements
+4. Explore ensemble methods for improved performance
+5. Implement monitoring for model drift detection
+
+---
+
+# Appendix: Session Information
+
+```{r session-info}
+sessionInfo()
+```
+
+---
+
+*Report generated on `r Sys.time()`*
