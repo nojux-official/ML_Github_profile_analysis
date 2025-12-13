@@ -200,3 +200,55 @@ save_model_to_disk <- function(model, save_dir = "static") {
   
   return(model_path)
 }
+
+load_model_from_disk <- function(model_path = "static/cnn_model.pt") {
+  if (!file.exists(model_path)) {
+    stop("Model file not found at: ", model_path)
+  }
+  
+  model <- torch_load(model_path)
+  cat("Model loaded from:", model_path, "\n")
+  
+  return(model)
+}
+
+# Execute prediction on a single image
+predict_image <- function(model, image_path, target_image_size = 6) {
+  img <- EBImage::readImage(image_path)
+  
+  # Extract grayscale channel if multichannel
+  if (length(dim(img)) > 2) {
+    img <- img[, , 1]
+  }
+  
+  img <- EBImage::resize(img, w = target_image_size, h = target_image_size)
+  
+  # values in [0, 1]
+  img_matrix <- as.matrix(img)
+  img_matrix <- pmin(pmax(img_matrix, 0), 1)
+  
+  # Standardize (using global mean/std - in production, should use training set stats)
+  mean_val <- mean(img_matrix)
+  std_val <- sd(as.numeric(img_matrix))
+  if (std_val < 1e-6) std_val <- 1
+  img_matrix <- (img_matrix - mean_val) / std_val
+  
+  # Convert to tensor (1, 1, H, W)
+  X_tensor <- torch_tensor(img_matrix, dtype = torch_float32())$unsqueeze(1)$unsqueeze(1)
+  
+  model$eval()
+  with_no_grad({
+    prediction <- model(X_tensor)
+  })
+  
+  prediction_numeric <- as.numeric(prediction)
+  # Apply sigmoid and threshold at 0.5
+  prediction_prob <- 1 / (1 + exp(-prediction_numeric))
+  pred_binary <- ifelse(prediction_prob > 0.5, 1, 0)
+  
+  return(list(
+    probability = prediction_prob,
+    prediction = pred_binary,
+    raw_output = prediction_numeric
+  ))
+}

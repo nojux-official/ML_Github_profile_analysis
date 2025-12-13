@@ -38,5 +38,40 @@ list(
     epochs = 2,
     batch_size = 16,
     learning_rate = 0.001
-  ))
+  )),
+  
+  tar_target(test_single_prediction, {
+    test_images <- list.files("test_images", pattern = "\\.png$", full.names = TRUE)
+    if (length(test_images) > 0) {
+      
+      #img id
+      test_image_path <- test_images[1] # the first img
+      filename <- basename(test_image_path)
+      image_id <- gsub("entry_|.png", "", filename)
+      
+      model <- load_model_from_disk("static/cnn_model.pt")
+      result <- predict_image(model, test_image_path)
+      
+      correct_label <- target_labels[image_id]
+      
+      list(
+        test_image = test_image_path,
+        image_id = image_id,
+        prediction = result$prediction,
+        probability = result$probability,
+        raw_output = result$raw_output,
+        correct_answer = correct_label,
+        is_correct = result$prediction == as.numeric(correct_label > 0)
+      )
+    } else {
+      list(test_image = "No test images found", prediction = NA)
+    }
+    print(paste("Path: ", test_image_path))
+    print(paste("Image ID: ", image_id))
+    print(paste("Prediction: ", result$prediction))
+    print(paste("Probability: ", result$probability))
+    print(paste("Raw Output: ", result$raw_output))
+    print(paste("Correct Label: ", correct_label))
+    print(paste("Is Correct: ", result$prediction == as.numeric(correct_label > 0)))
+  })
 )
