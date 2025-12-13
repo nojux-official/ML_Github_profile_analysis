@@ -163,9 +163,9 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   })
   
   predictions_numeric <- as.numeric(predictions)
-  # Apply sigmoid for probability and threshold at 0.5
+  # Apply sigmoid for probability and threshold at cnn_train_threshold
   predictions_prob <- 1 / (1 + exp(-predictions_numeric))
-  pred_binary <- ifelse(predictions_prob > 0.5, 1, 0)
+  pred_binary <- ifelse(predictions_prob > cnn_train_threshold, 1, 0)
   
   # Calculate accuracy
   accuracy <- mean(pred_binary == y_valid)
@@ -242,9 +242,9 @@ predict_image <- function(model, image_path, target_image_size = 6) {
   })
   
   prediction_numeric <- as.numeric(prediction)
-  # Apply sigmoid and threshold at 0.5
+  # Threshold
   prediction_prob <- 1 / (1 + exp(-prediction_numeric))
-  pred_binary <- ifelse(prediction_prob > 0.5, 1, 0)
+  pred_binary <- ifelse(prediction_prob > cnn_eval_threshold, 1, 0)
   
   return(list(
     probability = prediction_prob,
