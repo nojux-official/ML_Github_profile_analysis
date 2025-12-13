@@ -73,5 +73,57 @@ list(
     print(paste("Raw Output: ", result$raw_output))
     print(paste("Correct Label: ", correct_label))
     print(paste("Is Correct: ", result$prediction == as.numeric(correct_label > 0)))
+  }),
+
+  tar_target(single_prediction, {
+    query <-  '{
+              "0": [1574, 3773, 3571, 2672, 2478, 2534, 3129, 3077, 1171, 2045, 1539, 902, 1532, 2472, 1122, 2480, 3098, 2115, 1578],
+              "1": [1193, 376, 73, 290, 3129, 1852, 3077, 1171, 1022, 2045, 536, 2040, 1533, 1532, 2472, 673, 798],
+              "2": [1574, 3773, 925, 1728, 2815, 2963, 3077, 364, 1171, 536, 1867, 2472, 1122, 2532, 664, 28, 3311, 1768, 869],
+              "3": [3964, 3773, 4003, 928, 1852, 3077, 364, 1022, 3763, 2045, 3859, 3771, 234, 664, 703]
+              }'
+    data <- jsonlite::fromJSON(query)
+
+    if (!dir.exists("cache/")) {
+      dir.create("cache/", showWarnings = FALSE, recursive = TRUE)
+    }
+    apply_transformation(data, out_dir = "cache/")
+    test_images <- list.files("cache", pattern = "\\.png$", full.names = TRUE)
+    
+    if (length(test_images) > 0) {
+      # Load model using the trained model path
+      model <- load_model_from_disk("static/cnn_model.pt")
+      
+      # Get predictions for all images
+      predictions_list <- list()
+      
+      for (i in seq_along(test_images)) {
+        test_image_path <- test_images[i]
+        filename <- basename(test_image_path)
+        image_id <- gsub("entry_|.png", "", filename)
+        
+        result <- predict_image(model, test_image_path, threshold = cnn_eval_threshold)
+        
+        predictions_list[[i]] <- data.frame(
+          image_path = test_image_path,
+          image_id = image_id,
+          prediction = result$prediction,
+          probability = result$probability,
+          raw_output = result$raw_output,
+          stringsAsFactors = FALSE
+        )
+      }
+      
+      # Combine all predictions into a single data frame
+      all_predictions <- do.call(rbind, predictions_list)
+      rownames(all_predictions) <- NULL
+      
+      print(all_predictions)
+      
+      all_predictions
+    } else {
+      data.frame(test_image = "No test images found", prediction = NA)
+    }
+    unlink("cache/", recursive = TRUE)
   })
 )

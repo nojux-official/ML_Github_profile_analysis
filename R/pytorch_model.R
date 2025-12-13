@@ -213,7 +213,7 @@ load_model_from_disk <- function(model_path = "static/cnn_model.pt") {
 }
 
 # Execute prediction on a single image
-predict_image <- function(model, image_path, target_image_size = 6) {
+predict_image <- function(model, image_path, target_image_size = 6, threshold = cnn_eval_threshold) {
   img <- EBImage::readImage(image_path)
   
   # Extract grayscale channel if multichannel
@@ -244,7 +244,7 @@ predict_image <- function(model, image_path, target_image_size = 6) {
   prediction_numeric <- as.numeric(prediction)
   # Threshold
   prediction_prob <- 1 / (1 + exp(-prediction_numeric))
-  pred_binary <- ifelse(prediction_prob > cnn_eval_threshold, 1, 0)
+  pred_binary <- ifelse(prediction_prob > threshold, 1, 0)
   
   return(list(
     probability = prediction_prob,

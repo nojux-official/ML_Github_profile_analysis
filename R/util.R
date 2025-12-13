@@ -22,8 +22,12 @@ load_json_features <- function(filepath) {
   return(data_list)
 }
 
-apply_transformation <- function(data) {
-    # out_dir defined in constants
+apply_transformation <- function(data, out_dir = NULL) {
+    # Use constant if out_dir not specified
+    if (is.null(out_dir)) {
+      out_dir <- out_dir_default
+    }
+    # Create output directory
     dir.create(out_dir, showWarnings = FALSE)
 
     for (id in names(data)) {
