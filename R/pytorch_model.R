@@ -139,10 +139,10 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   train_ds <- dataset(X_tensor, y_tensor)
   train_dl <- torch::dataloader(train_ds, batch_size = batch_size, shuffle = TRUE)
   
-  # Create and train model
+  # architecture
   model <- create_simple_cnn()
   
-  # Setup and train model using luz
+  # using luz to train the model
   fitted_model <- model %>%
     setup(
       loss = nn_mse_loss(),
@@ -154,7 +154,6 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
       verbose = TRUE
     )
   
-  # Get trained model
   trained_model <- fitted_model$model
   
   # Make predictions on full dataset
@@ -179,10 +178,25 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
     probability = predictions_prob
   )
   
+  save_model_to_disk(trained_model, model_save_dir)
+  
   return(list(
     model = trained_model,
     results = results,
     accuracy = accuracy,
     fitted = fitted_model
   ))
+}
+
+save_model_to_disk <- function(model, save_dir = "static") {
+  if (!dir.exists(save_dir)) {
+    dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
+  }
+  
+  model_path <- file.path(save_dir, "cnn_model.pt")
+  torch_save(model, model_path)
+  
+  cat("Model saved to:", model_path, "\n")
+  
+  return(model_path)
 }
