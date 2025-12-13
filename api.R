@@ -74,8 +74,30 @@ function(model_name, res) {
 #* @get /dataset
 function() {
   list(
-    datasets = list.files("dataset", pattern = "\\.(json|csv)$", full.names = FALSE)
+    datasets = list.files("dataset", pattern = "\\.(json|csv)$", full.names = FALSE),
+    download_url = "/dataset/<dataset_name>"
   )
+}
+
+#* @get /dataset/<dataset_name>
+#* @serializer contentType list(type="application/octet-stream")
+function(dataset_name, res) {
+  dataset_path <- file.path("dataset", dataset_name)
+  
+  if (!file.exists(dataset_path)) {
+    res$status <- 404
+    return(list(error = paste("Dataset not found:", dataset_name)))
+  }
+  
+  if (!grepl("\\.(json|csv)$", dataset_name)) {
+    res$status <- 400
+    return(list(error = "Only json/csv files can be downloaded"))
+  }
+  
+  res$headers[["Content-Disposition"]] <- paste0("attachment; filename=", dataset_name)
+  res$headers[["Content-Type"]] <- "application/octet-stream"
+  
+  readBin(dataset_path, "raw", n = file.size(dataset_path))
 }
 
 #* @param query:string JSON string with feature arrays
