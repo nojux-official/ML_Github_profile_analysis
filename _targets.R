@@ -6,7 +6,7 @@ if(!require("EBImage", quietly = TRUE))
 if(!require("targets", quietly = TRUE))
   install.packages("targets")
 
-targetPackages <- c("tidyr", "jsonlite", "torch", "luz", "torchvision", "torchdatasets")
+targetPackages <- c("tidyr", "jsonlite", "torch", "luz", "torchvision", "torchdatasets", "plumber")
 pacman::p_load(char = targetPackages)
 
 torch::install_torch()
