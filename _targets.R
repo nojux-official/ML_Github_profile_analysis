@@ -3,10 +3,13 @@ if(!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 if(!require("EBImage", quietly = TRUE))
   BiocManager::install("EBImage")
+if("shiny" %in% rownames(installed.packages()) == F)
+  install.packages("https://cran.r-project.org/src/contrib/shiny_1.12.1.tar.gz", repos=NULL, type="source")
 if(!require("targets", quietly = TRUE))
   install.packages("targets")
 
-targetPackages <- c("tidyr", "jsonlite", "torch", "luz", "torchvision", "torchdatasets", "plumber")
+targetPackages <- c("tidyr", "jsonlite", 
+    "torch", "luz", "torchvision", "torchdatasets", "plumber")
 pacman::p_load(char = targetPackages)
 
 torch::install_torch()

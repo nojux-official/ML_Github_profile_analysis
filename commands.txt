@@ -1,1 +1,2 @@
 R --slave -e "pr <- plumber::plumb('api.R'); plumber::pr_run(pr, host='0.0.0.0', port=8000)"
+R -e "shiny::runApp('shiny.R', host='0.0.0.0', port=3838)"
