@@ -4,7 +4,6 @@ library(torch)
 library(EBImage)
 library(jsonlite)
 
-# Source helper functions
 lapply(list.files("./R", full.names = TRUE), source)
 
 # ========== CONFIGURATION ==========
@@ -16,7 +15,6 @@ cache_dir <- api_cache_dir
 #* @apiTitle CNN Image Classification API
 #* @apiDescription API for serving CNN model predictions on images
 
-#* Root endpoint
 #* @get /
 function() {
   list(
@@ -30,7 +28,6 @@ function() {
   )
 }
 
-#* Serve the performance report
 #* @get /report
 #* @serializer html list(type="text/html")
 function(res) {
@@ -41,20 +38,39 @@ function(res) {
     return("<html><body><h1>Report not found</h1><p>Run targets::tar_make(report) to generate it.</p></body></html>")
   }
   
-  # Read and return the HTML file
   report_content <- readLines(report_path)
   return(paste(report_content, collapse = "\n"))
 }
 
-#* List available CNN models
 #* @get /models
 function() {
   list(
-    models = list.files(models_dir, pattern = "\\.pt$", full.names = FALSE)
+    models = list.files(models_dir, pattern = "\\.pt$", full.names = FALSE),
+    download_url = "/models/<model_name>"
   )
 }
 
-#* List available datasets
+#* @get /models/<model_name>
+#* @serializer contentType list(type="application/octet-stream")
+function(model_name, res) {
+  model_path <- file.path(models_dir, model_name)
+  
+  if (!file.exists(model_path)) {
+    res$status <- 404
+    return(list(error = paste("Model not found:", model_name)))
+  }
+  
+  if (!grepl("\\.pt$", model_name)) {
+    res$status <- 400
+    return(list(error = "Only .pt files can be downloaded"))
+  }
+  
+  res$headers[["Content-Disposition"]] <- paste0("attachment; filename=", model_name)
+  res$headers[["Content-Type"]] <- "application/octet-stream"
+  
+  readBin(model_path, "raw", n = file.size(model_path))
+}
+
 #* @get /dataset
 function() {
   list(
@@ -62,13 +78,11 @@ function() {
   )
 }
 
-#* Predict on image features from JSON query
 #* @param query:string JSON string with feature arrays
 #* @param model:string Model filename (optional, uses latest if not specified)
 #* @post /predict
 function(query = NULL, model = NULL) {
   
-  # Parse query
   if (is.null(query)) {
     return(list(error = "Query parameter required. Provide JSON with feature arrays."))
   }
@@ -116,7 +130,6 @@ function(query = NULL, model = NULL) {
     return(list(error = paste("Error loading model:", e$message)))
   })
   
-  # Get predictions for all images
   predictions_list <- list()
   
   for (i in seq_along(test_images)) {
@@ -138,10 +151,8 @@ function(query = NULL, model = NULL) {
     })
   }
   
-  # Clean up cache
   unlink(cache_dir, recursive = TRUE)
   
-  # Return results
   list(
     model = basename(model_path),
     total_predictions = length(predictions_list),
