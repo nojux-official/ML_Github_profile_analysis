@@ -24,9 +24,26 @@ function() {
     available_endpoints = list(
       models = "/models",
       dataset = "/dataset",
-      predict = "/predict"
+      predict = "/predict",
+      report = "/report"
     )
   )
+}
+
+#* Serve the performance report
+#* @get /report
+#* @serializer html list(type="text/html")
+function(res) {
+  report_path <- file.path("static", "cnn_model_report.html")
+  
+  if (!file.exists(report_path)) {
+    res$status <- 404
+    return("<html><body><h1>Report not found</h1><p>Run targets::tar_make(report) to generate it.</p></body></html>")
+  }
+  
+  # Read and return the HTML file
+  report_content <- readLines(report_path)
+  return(paste(report_content, collapse = "\n"))
 }
 
 #* List available CNN models

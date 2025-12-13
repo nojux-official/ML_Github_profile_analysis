@@ -16,7 +16,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width =
 
 # Load required libraries
 library(tidyverse)
-library(caret)
 library(pROC)
 library(DET)
 library(ggplot2)
@@ -60,24 +59,27 @@ targets::tar_load(single_prediction)
 
 # 2. Performance Metrics
 
-```{r performance-metrics, eval=FALSE}
-# This section loads predictions and calculates metrics
-# predictions <- tar_read(single_prediction)
-
-# Create confusion matrix
-calculate_metrics <- function(actual, predicted) {
-  cm <- confusionMatrix(factor(predicted), factor(actual))
+```{r performance-metrics}
+# Simple metrics calculation without caret
+calculate_simple_metrics <- function(actual, predicted) {
+  tp <- sum((predicted == 1) & (actual == 1))
+  tn <- sum((predicted == 0) & (actual == 0))
+  fp <- sum((predicted == 1) & (actual == 0))
+  fn <- sum((predicted == 0) & (actual == 1))
   
-  metrics <- list(
-    accuracy = cm$overall['Accuracy'],
-    sensitivity = cm$byClass['Sensitivity'],
-    specificity = cm$byClass['Specificity'],
-    precision = cm$byClass['Pos Pred Value'],
-    f1 = cm$byClass['F1'],
-    balanced_accuracy = cm$byClass['Balanced Accuracy']
+  accuracy <- (tp + tn) / (tp + tn + fp + fn)
+  sensitivity <- tp / (tp + fn)
+  specificity <- tn / (tn + fp)
+  precision <- tp / (tp + fp)
+  f1 <- 2 * (precision * sensitivity) / (precision + sensitivity)
+  
+  list(
+    accuracy = accuracy,
+    sensitivity = sensitivity,
+    specificity = specificity,
+    precision = precision,
+    f1 = f1
   )
-  
-  return(metrics)
 }
 ```
 
@@ -96,36 +98,10 @@ knitr::kable(metrics_df, caption = "Model Performance Metrics")
 
 # 3. ROC Curve Analysis
 
-```{r roc-curve, eval=FALSE}
-# ROC Curve Calculation and Visualization
-roc_curve <- function(actual, predicted_probs) {
-  roc_obj <- roc(actual, predicted_probs, 
-                 levels = c(0, 1), direction = "<")
-  return(roc_obj)
-}
-
-# Example ROC curve plot
-ggplot_roc <- function(roc_obj) {
-  roc_df <- data.frame(
-    fpr = 1 - roc_obj$specificities,
-    tpr = roc_obj$sensitivities
-  )
-  
-  ggplot(roc_df, aes(x = fpr, y = tpr)) +
-    geom_path(linewidth = 1, color = "#2E86AB") +
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray") +
-    labs(
-      title = "ROC Curve",
-      x = "False Positive Rate",
-      y = "True Positive Rate",
-      subtitle = paste0("AUC = ", round(roc_obj$auc, 3))
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(face = "bold", size = 14),
-      plot.subtitle = element_text(size = 12)
-    )
-}
+```{r roc-curve}
+# ROC Curve (placeholder)
+cat("ROC Curve visualization requires actual prediction probabilities from the model.\n")
+cat("This would show the trade-off between true positive rate and false positive rate.")
 ```
 
 ```{r roc-plot}
@@ -244,19 +220,10 @@ knitr::kable(importance_df, caption = "Layer Importance Scores")
 
 # 7. Confusion Matrix
 
-```{r confusion-matrix, eval=FALSE}
-# Confusion Matrix Visualization
-confusion_matrix <- caret::confusionMatrix(predicted, actual)
-
-# Create heatmap
-cm_df <- as.data.frame(confusion_matrix$table)
-
-ggplot(cm_df, aes(x = Prediction, y = Reference, fill = Freq)) +
-  geom_tile() +
-  geom_text(aes(label = Freq), color = "white", size = 5) +
-  scale_fill_gradient(low = "lightblue", high = "#2E86AB") +
-  labs(title = "Confusion Matrix") +
-  theme_minimal()
+```{r confusion-matrix}
+# Simple Confusion Matrix (placeholder)
+cat("Confusion Matrix visualization requires actual prediction data from the model.\n")
+cat("This would be generated dynamically from model predictions.")
 ```
 
 ---

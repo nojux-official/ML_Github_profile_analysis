@@ -141,5 +141,5 @@ list(
     }
     unlink("cache/", recursive = TRUE)
   }),
-  tar_render(report, "report.Rmd")
+  tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
 )
