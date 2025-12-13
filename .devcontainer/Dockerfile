@@ -33,9 +33,8 @@ RUN apt-get update && apt-get install -y \
     libglpk40 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN R -e "install.packages('targets')"
 
-# Set working directory
 WORKDIR /workspace
 
-# Set entrypoint to startup script
 CMD ["/bin/bash"]

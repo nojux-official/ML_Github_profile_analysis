@@ -1,18 +1,18 @@
-# Prepare environment and load required libraries
 if("pacman" %in% rownames(installed.packages()) == F) install.packages("pacman")
 if(!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 if(!require("EBImage", quietly = TRUE))
   BiocManager::install("EBImage")
+if(!require("targets", quietly = TRUE))
+  install.packages("targets")
 
-# apt-get update && apt-get install -y libfftw3-dev libglpk40
-
-# Install torch packages for R
 targetPackages <- c("tidyr", "jsonlite", "torch", "luz", "torchvision", "torchdatasets")
 pacman::p_load(char = targetPackages)
+
+torch::install_torch()
 library(targets)
 
-# Load your R files / conflicted
+
 lapply(list.files("./R", full.names = TRUE), source)
 options(tidyverse.quiet = TRUE)
 tar_option_set(packages = targetPackages)
@@ -35,7 +35,7 @@ list(
     image_data$images,
     image_data$ids,
     target_labels,
-    epochs = 20,
+    epochs = 2,
     batch_size = 16,
     learning_rate = 0.001
   ))
