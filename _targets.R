@@ -52,7 +52,8 @@ list(
     target_labels,
     epochs = 2,
     batch_size = 16,
-    learning_rate = 0.001
+    learning_rate = 0.001,
+    threshold = cnn_train_threshold
   )),
   
   tar_target(test_single_prediction, {
@@ -119,12 +120,19 @@ list(
         
         result <- predict_image(model, test_image_path, threshold = cnn_eval_threshold)
         
+        # Look up correct label if available
+        correct_label <- NA
+        if (image_id %in% names(target_labels)) {
+          correct_label <- as.numeric(target_labels[image_id] > 0)
+        }
+        
         predictions_list[[i]] <- data.frame(
           image_path = test_image_path,
           image_id = image_id,
           prediction = result$prediction,
           probability = result$probability,
           raw_output = result$raw_output,
+          correct_answer = correct_label,
           stringsAsFactors = FALSE
         )
       }
