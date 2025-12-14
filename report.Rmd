@@ -26,21 +26,41 @@ This report presents the performance evaluation of the CNN image classification 
 
 ---
 
-# 1. Model Configuration & Data
+# 1. Model Comparison
 
 ```{r model-config}
-targets::tar_load(cnn_model)
+targets::tar_load(cnn_models)
 
-# Extract metrics from trained model
-train_metrics <- cnn_model$metrics
-train_accuracy <- cnn_model$accuracy
+# Create comparison table - cnn_models is a list from pattern mapping
+model_list <- if (is.list(cnn_models) && !is.data.frame(cnn_models)) {
+  if ("model_name" %in% names(cnn_models)) {
+    list(cnn_models)  # Single result, wrap it
+  } else {
+    cnn_models  # Multiple results from pattern
+  }
+} else {
+  list(cnn_models)
+}
+
+comparison_df <- data.frame(
+  Model = sapply(model_list, function(x) paste0("Epochs_", x$epochs)),
+  Train_Accuracy = sapply(model_list, function(x) x$train_accuracy),
+  Test_Accuracy = sapply(model_list, function(x) x$test_accuracy),
+  Test_F1 = sapply(model_list, function(x) x$test_metrics$f1),
+  Test_AUC = sapply(model_list, function(x) {
+    if (!is.null(x$test_results)) {
+      tryCatch({
+        roc_obj <- pROC::roc(x$test_results$actual, x$test_results$probability, quiet = TRUE)
+        as.numeric(pROC::auc(roc_obj))
+      }, error = function(e) NA)
+    } else {
+      NA
+    }
+  })
+)
+
+knitr::kable(comparison_df, caption = "Model Performance Comparison by Epochs")
 ```
-
-**Training Parameters:**
-- Epochs: 2
-- Batch Size: 16
-- Learning Rate: 0.001
-- Threshold: 0.5
 
 **Model Architecture:**
 - Input: 6x6 grayscale images
@@ -50,13 +70,6 @@ train_accuracy <- cnn_model$accuracy
 - FC Layer 2: 64 → 1 neuron (Binary output)
 - Loss: MSE
 - Optimizer: Adam (lr=0.001)
-
-**Training Performance:**
-- Accuracy: `r round(train_accuracy, 4)`
-- Sensitivity: `r round(train_metrics$sensitivity, 4)`
-- Specificity: `r round(train_metrics$specificity, 4)`
-- Precision: `r round(train_metrics$precision, 4)`
-- F1 Score: `r round(train_metrics$f1, 4)`
 
 ---
 
@@ -91,33 +104,43 @@ if (!is.null(predictions_df)) {
 
 # 3. ROC Curve Analysis
 
-## Training Data ROC
+## Test Data ROC Comparison
 
-```{r roc-train}
-if (!is.null(cnn_model$results)) {
-  plot_roc(cnn_model$results$actual, cnn_model$results$probability)
-} else {
-  plot.new()
-  text(0.5, 0.5, "No training results available for ROC", cex = 1.5)
+```{r roc-test-comparison}
+roc_data <- list()
+
+for (model_res in model_list) {
+  model_name <- paste0("Epochs_", model_res$epochs)
+  res <- model_res$test_results
+  if (!is.null(res)) {
+    # Ensure we have both classes
+    if (length(unique(res$actual)) > 1) {
+      tryCatch({
+        roc_obj <- pROC::roc(res$actual, res$probability, quiet = TRUE)
+        roc_data[[model_name]] <- roc_obj
+      }, error = function(e) {})
+    }
+  }
 }
-```
 
-## Test Data ROC
-
-```{r roc-test}
-if (!is.null(predictions_df) && !all(is.na(predictions_df$correct_answer))) {
-  plot_roc(predictions_df$correct_answer, predictions_df$probability)
+if (length(roc_data) > 0) {
+  ggroc(roc_data) +
+    geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), color="grey", linetype="dashed") +
+    theme_minimal() +
+    labs(title = "ROC Curves on Test Data", color = "Model")
 } else {
   plot.new()
-  text(0.5, 0.5, "No ground truth labels available for Test ROC", cex = 1.5)
+  text(0.5, 0.5, "No valid results for ROC (need both classes)", cex = 1.5)
 }
 ```
 
 ```{r roc-stats}
-if (!is.null(predictions_df) && !all(is.na(predictions_df$correct_answer))) {
-  roc_stats <- get_roc_stats(predictions_df$correct_answer, predictions_df$probability)
-  if (!is.null(roc_stats)) {
-    knitr::kable(roc_stats, caption = "Test Data AUC Statistics")
+# Display detailed stats for the best model (highest AUC)
+if (exists("comparison_df") && nrow(comparison_df) > 0) {
+  best_model_idx <- which.max(comparison_df$Test_AUC)
+  if (length(best_model_idx) > 0) {
+    best_model_name <- comparison_df$Model[best_model_idx]
+    cat(paste("Best Model based on AUC:", best_model_name, "\n"))
   }
 }
 ```

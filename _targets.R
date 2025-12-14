@@ -46,17 +46,15 @@ list(
   
   tar_target(image_data, prepare_pytorch_data(git_features_images)),
   
-  tar_target(cnn_model, train_pytorch_cnn(
-    image_data$images,
-    image_data$ids,
-    target_labels,
-    epochs = 2,
-    batch_size = 16,
-    learning_rate = 0.001,
-    threshold = cnn_train_threshold
-  )),
+  tar_target(data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
   
-  tar_target(test_single_prediction, {
+  tar_target(cnn_model_1, run_cnn_experiment(data_split, 1)),
+  
+  tar_target(cnn_model_2, run_cnn_experiment(data_split, 2)),
+  
+  tar_target(cnn_models, list(cnn_model_1, cnn_model_2)),
+  
+  tar_target(single_img_prediction, {
     test_images <- list.files("test_images", pattern = "\\.png$", full.names = TRUE)
     if (length(test_images) > 0) {
       
@@ -65,7 +63,9 @@ list(
       filename <- basename(test_image_path)
       image_id <- gsub("entry_|.png", "", filename)
       
-      model <- load_model_from_disk("static/cnn_model.pt")
+      # Load the model with max epochs from disk
+      model <- load_model_from_disk("static/cnn_model_2ep.pt")
+      
       result <- predict_image(model, test_image_path)
       
       correct_label <- target_labels[image_id]
@@ -107,10 +107,9 @@ list(
     test_images <- list.files("cache", pattern = "\\.png$", full.names = TRUE)
     
     if (length(test_images) > 0) {
-      # Load model using the trained model path
-      model <- load_model_from_disk("static/cnn_model.pt")
+      # Load the model with max epochs from disk
+      model <- load_model_from_disk("static/cnn_model_2ep.pt")
       
-      # Get predictions for all images
       predictions_list <- list()
       
       for (i in seq_along(test_images)) {
@@ -137,7 +136,6 @@ list(
         )
       }
       
-      # Combine all predictions into a single data frame
       all_predictions <- do.call(rbind, predictions_list)
       rownames(all_predictions) <- NULL
       
@@ -147,7 +145,10 @@ list(
     } else {
       data.frame(test_image = "No test images found", prediction = NA)
     }
-    unlink("cache/", recursive = TRUE)
+    cache_files <- list.files("cache/", pattern = "\\.png$", full.names = TRUE)
+    if (length(cache_files) > 0) {
+      file.remove(cache_files)
+    }
   }),
   tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
 )

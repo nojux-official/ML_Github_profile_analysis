@@ -67,3 +67,32 @@ load_target_data <- function(filepath) {
   
   return(target_vector)
 }
+
+# Split dataset into train and test
+split_dataset <- function(images_list, image_ids, targets, split_ratio = 0.8, seed = 123) {
+  set.seed(seed)
+  
+  # Only consider samples that have targets
+  valid_indices <- which(image_ids %in% names(targets))
+  valid_ids <- image_ids[valid_indices]
+  
+  n_samples <- length(valid_indices)
+  n_train <- floor(n_samples * split_ratio)
+  
+  train_indices <- sample(valid_indices, n_train)
+  test_indices <- setdiff(valid_indices, train_indices)
+  
+  train_data <- list(
+    images = images_list[train_indices],
+    ids = image_ids[train_indices],
+    targets = targets
+  )
+  
+  test_data <- list(
+    images = images_list[test_indices],
+    ids = image_ids[test_indices],
+    targets = targets
+  )
+  
+  return(list(train = train_data, test = test_data))
+}
