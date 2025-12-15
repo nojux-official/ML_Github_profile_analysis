@@ -177,12 +177,12 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   fp <- sum((pred_binary == 1) & (y_valid == 0))
   fn <- sum((pred_binary == 0) & (y_valid == 1))
   
-  sensitivity <- if (tp + fn > 0) tp / (tp + fn) else NA
-  specificity <- if (tn + fp > 0) tn / (tn + fp) else NA
-  precision <- if (tp + fp > 0) tp / (tp + fp) else NA
-  f1 <- if (!is.na(precision) && !is.na(sensitivity) && (precision + sensitivity) > 0) {
+  sensitivity <- if (tp + fn > 0) tp / (tp + fn) else 0
+  specificity <- if (tn + fp > 0) tn / (tn + fp) else 0
+  precision <- if (tp + fp > 0) tp / (tp + fp) else 0
+  f1 <- if ((precision + sensitivity) > 0) {
     2 * (precision * sensitivity) / (precision + sensitivity)
-  } else NA
+  } else 0
   
   metrics <- list(
     accuracy = accuracy,
@@ -330,12 +330,12 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
   fp <- sum((pred_binary == 1) & (y_valid == 0))
   fn <- sum((pred_binary == 0) & (y_valid == 1))
   
-  sensitivity <- if (tp + fn > 0) tp / (tp + fn) else NA
-  specificity <- if (tn + fp > 0) tn / (tn + fp) else NA
-  precision <- if (tp + fp > 0) tp / (tp + fp) else NA
-  f1 <- if (!is.na(precision) && !is.na(sensitivity) && (precision + sensitivity) > 0) {
+  sensitivity <- if (tp + fn > 0) tp / (tp + fn) else 0
+  specificity <- if (tn + fp > 0) tn / (tn + fp) else 0
+  precision <- if (tp + fp > 0) tp / (tp + fp) else 0
+  f1 <- if ((precision + sensitivity) > 0) {
     2 * (precision * sensitivity) / (precision + sensitivity)
-  } else NA
+  } else 0
   
   metrics <- list(
     accuracy = accuracy,

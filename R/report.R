@@ -182,39 +182,130 @@ plot_roc <- function(actual, predicted_probs) {
 }
 
 plot_confusion_matrix <- function(actual, predicted) {
-  if (is.null(actual) || is.null(predicted) || all(is.na(actual))) {
-    plot.new()
-    text(0.5, 0.5, "No ground truth data for Confusion Matrix", cex = 1.5)
-    return()
+  # Ensure factors with same levels
+  u_levels <- union(unique(actual), unique(predicted))
+  u_levels <- sort(u_levels)
+  
+  # Force 0 and 1 if possible
+  if(all(u_levels %in% c(0, 1))) {
+    levels <- c(0, 1)
+  } else {
+    levels <- u_levels
   }
   
-  tp <- sum((predicted == 1) & (actual == 1), na.rm = TRUE)
-  tn <- sum((predicted == 0) & (actual == 0), na.rm = TRUE)
-  fp <- sum((predicted == 1) & (actual == 0), na.rm = TRUE)
-  fn <- sum((predicted == 0) & (actual == 1), na.rm = TRUE)
+  act_fac <- factor(actual, levels = levels)
+  pred_fac <- factor(predicted, levels = levels)
   
-  cm <- matrix(c(tn, fp, fn, tp), nrow = 2, ncol = 2,
-               dimnames = list(Predicted = c("Negative", "Positive"),
-                              Actual = c("Negative", "Positive")))
+  tbl <- table(Predicted = pred_fac, Actual = act_fac)
   
-  plot.new()
-  plot.window(xlim = c(0, 3), ylim = c(0, 3))
+  # Extract counts
+  # Assuming levels are 0, 1
+  # tbl[row, col] -> tbl[Predicted, Actual]
+  tn <- tbl[1, 1] # Pred 0, Act 0
+  fn <- tbl[1, 2] # Pred 0, Act 1
+  fp <- tbl[2, 1] # Pred 1, Act 0
+  tp <- tbl[2, 2] # Pred 1, Act 1
   
-  colors <- matrix(c("#90EE90", "#FFB6C6", "#FFB6C6", "#90EE90"), nrow = 2)
+  # Row sums (Predicted totals)
+  row_sum_0 <- tn + fn
+  row_sum_1 <- fp + tp
   
-  for (i in 1:2) {
-    for (j in 1:2) {
-      rect(j-0.9, 3.1-i, j-0.1, 3.9-i, col = colors[i,j], border = "black", lwd = 2)
-      text(j-0.5, 3.5-i, cm[i,j], cex = 3, font = 2)
-    }
+  # Col sums (Actual totals)
+  col_sum_0 <- tn + fp
+  col_sum_1 <- fn + tp
+  
+  total <- sum(tbl)
+  
+  # Metrics
+  # User Accuracy (Precision-like) - Row wise
+  user_acc_0 <- if(row_sum_0 > 0) tn / row_sum_0 else 0 # NPV
+  user_acc_1 <- if(row_sum_1 > 0) tp / row_sum_1 else 0 # Precision
+  
+  # Producer Accuracy (Recall-like) - Col wise
+  prod_acc_0 <- if(col_sum_0 > 0) tn / col_sum_0 else 0 # Specificity
+  prod_acc_1 <- if(col_sum_1 > 0) tp / col_sum_1 else 0 # Recall
+  
+  overall_acc <- (tp + tn) / total
+  
+  # Kappa
+  pe <- ((row_sum_0 * col_sum_0) + (row_sum_1 * col_sum_1)) / (total^2)
+  kappa <- if(1 - pe != 0) (overall_acc - pe) / (1 - pe) else 0
+  
+  # Create data frame for ggplot
+  plot_data <- data.frame(
+    x = integer(), y = integer(), 
+    label = character(), 
+    fill = character(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Helper to add cell
+  add_cell <- function(x, y, label, fill) {
+    data.frame(x = x, y = y, label = as.character(label), fill = fill, stringsAsFactors = FALSE)
   }
   
-  text(0.5, 0, "Predicted", cex = 1.2, font = 2)
-  text(0, 1.5, "Actual", cex = 1.2, font = 2, srt = 90)
-  text(1.5, 3.8, "Negative", cex = 1, pos = 3)
-  text(2.5, 3.8, "Positive", cex = 1, pos = 3)
-  text(-0.3, 3.5, "Negative", cex = 1, pos = 2)
-  text(-0.3, 2.5, "Positive", cex = 1, pos = 2)
+  # Colors
+  col_class1 <- "#FFFACD" # LemonChiffon
+  col_class2 <- "#FFE4B5" # Moccasin
+  col_total <- "#98FB98" # PaleGreen
+  col_metric <- "#FF6347" # Tomato
+  col_dark_green <- "#2E8B57"
+  col_gray <- "gray90"
+  
+  # Row 1 (Pred 0) - Y=4
+  plot_data <- rbind(plot_data, add_cell(1, 4, tn, col_class2))
+  plot_data <- rbind(plot_data, add_cell(2, 4, fn, col_class1))
+  plot_data <- rbind(plot_data, add_cell(3, 4, row_sum_0, col_total))
+  plot_data <- rbind(plot_data, add_cell(4, 4, sprintf("%.1f%%", user_acc_0*100), col_metric))
+  
+  # Row 2 (Pred 1) - Y=3
+  plot_data <- rbind(plot_data, add_cell(1, 3, fp, col_class1))
+  plot_data <- rbind(plot_data, add_cell(2, 3, tp, col_class2))
+  plot_data <- rbind(plot_data, add_cell(3, 3, row_sum_1, col_total))
+  plot_data <- rbind(plot_data, add_cell(4, 3, sprintf("%.1f%%", user_acc_1*100), col_metric))
+  
+  # Row 3 (Total Truth) - Y=2
+  plot_data <- rbind(plot_data, add_cell(1, 2, col_sum_0, col_total))
+  plot_data <- rbind(plot_data, add_cell(2, 2, col_sum_1, col_total))
+  plot_data <- rbind(plot_data, add_cell(3, 2, total, col_dark_green))
+  plot_data <- rbind(plot_data, add_cell(4, 2, "", "gray50"))
+  
+  # Row 4 (Producer Acc) - Y=1
+  plot_data <- rbind(plot_data, add_cell(1, 1, sprintf("%.1f%%", prod_acc_0*100), col_metric))
+  plot_data <- rbind(plot_data, add_cell(2, 1, sprintf("%.1f%%", prod_acc_1*100), col_metric))
+  plot_data <- rbind(plot_data, add_cell(3, 1, "", "gray50"))
+  plot_data <- rbind(plot_data, add_cell(4, 1, "", "gray50"))
+  
+  # Plot
+  ggplot(plot_data, aes(x = x, y = y, fill = fill)) +
+    geom_tile(color = "white", size = 1) +
+    geom_text(aes(label = label), size = 5, fontface = "bold") +
+    scale_fill_identity() +
+    scale_x_continuous(
+      breaks = 1:4, 
+      labels = c("Class 0", "Class 1", "Total", "User Acc"),
+      position = "top",
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      breaks = 1:4, 
+      labels = c("Prod Acc", "Total", "Class 1", "Class 0"),
+      expand = c(0, 0)
+    ) +
+    labs(
+      title = "Confusion Matrix",
+      subtitle = sprintf("Overall Accuracy: %.1f%%  |  Kappa: %.3f", overall_acc*100, kappa),
+      x = "Actual Class",
+      y = "Predicted Class"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 14, face = "bold"),
+      panel.grid = element_blank(),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 14, hjust = 0.5)
+    )
 }
 
 plot_prediction_distribution <- function(data) {

@@ -61,18 +61,29 @@ comparison_df <- data.frame(
 knitr::kable(comparison_df, caption = "Model Performance Comparison by Epochs")
 ```
 
-**Model Architecture:**
-- Input: 6x6 grayscale images
-- Conv Layer 1: 1 → 16 filters (3x3 kernel, ReLU, Max Pool)
-- Conv Layer 2: 16 → 32 filters (3x3 kernel, ReLU, Max Pool)
-- FC Layer 1: 32 → 64 neurons (ReLU, Dropout 0.3)
-- FC Layer 2: 64 → 1 neuron (Binary output)
-- Loss: MSE
-- Optimizer: Adam (lr=0.001)
+---
+
+# 2. Confusion Matrix Analysis
+
+```{r confusion-matrix, fig.width=8, fig.height=6}
+# Display confusion matrix for the best model
+if (exists("comparison_df") && nrow(comparison_df) > 0) {
+  best_model_idx <- which.max(comparison_df$Test_AUC)
+  best_model <- model_list[[best_model_idx]]
+  
+  if (!is.null(best_model$test_results)) {
+    cm_plot <- plot_confusion_matrix(best_model$test_results$actual, best_model$test_results$predicted)
+    print(cm_plot)
+  } else {
+    plot.new()
+    text(0.5, 0.5, "No test results for Confusion Matrix", cex = 1.5)
+  }
+}
+```
 
 ---
 
-# 2. Prediction Summary
+# 3. Prediction Summary
 
 ```{r metrics}
 targets::tar_load(single_prediction)
@@ -101,7 +112,7 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 3. ROC and DET Curves
+# 4. ROC and DET Curves
 
 ```{r echo=FALSE, fig.width=12, fig.height=6}
 # Create DETs object from model_performance list
@@ -118,7 +129,7 @@ if (!is.null(model_dets)) {
 
 ---
 
-# 4. Prediction Probability Distribution
+# 5. Prediction Probability Distribution
 
 ```{r dist}
 if (!is.null(predictions_df)) {
@@ -131,7 +142,7 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 5. Sample Predictions
+# 6. Sample Predictions
 
 ```{r sample}
 if (!is.null(predictions_df)) {
@@ -151,7 +162,7 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 6. Recommendations & Conclusions
+# 7. Recommendations & Conclusions
 
 ## Key Findings
 
