@@ -3,7 +3,7 @@ library(torch)
 library(luz)
 
 # Simple CNN for 6x6 grayscale image classification
-create_simple_cnn <- function() {
+create_simple_cnn <- function(dropout_rate = cnn_dropout_rate) {
   nn_module(
     "SimpleCNN",
     initialize = function() {
@@ -17,7 +17,7 @@ create_simple_cnn <- function() {
       flat_size <- 32 * 1 * 1
       
       self$fc1 <- nn_linear(flat_size, 64)
-      self$dropout <- nn_dropout(p = 0.3)
+      self$dropout <- nn_dropout(p = dropout_rate)
       self$fc2 <- nn_linear(64, 1)
       
       # Initialize weights with smaller values
@@ -86,7 +86,9 @@ prepare_pytorch_data <- function(image_dir, target_image_size = 6) {
 
 # Build and train CNN using native R torch
 train_pytorch_cnn <- function(images_list, image_ids, targets, 
-                             epochs = 20, batch_size = 32, learning_rate = 0.0001, threshold = cnn_train_threshold, model_name = "cnn_model") {
+                             epochs = 20, batch_size = 32, learning_rate = 0.0001, 
+                             dropout_rate = 0.3, use_class_weights = TRUE,
+                             threshold = cnn_train_threshold, model_name = "cnn_model") {
   
   # Prepare data
   y_labels <- targets[image_ids]
@@ -101,6 +103,18 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   
   cat("Training samples:", length(y_valid), "\n")
   cat("Class distribution:", table(y_valid), "\n")
+  
+  # Calculate class weights if requested
+  if (use_class_weights) {
+    n_pos <- sum(y_valid == 1)
+    n_neg <- sum(y_valid == 0)
+    # Weight for positive class to balance the loss
+    pos_weight_val <- if(n_pos > 0) n_neg / n_pos else 1
+    cat("Using class weighting. Positive class weight:", pos_weight_val, "\n")
+    loss_fn <- nn_bce_with_logits_loss(pos_weight = torch_tensor(pos_weight_val))
+  } else {
+    loss_fn <- nn_bce_with_logits_loss()
+  }
   
   # Convert to tensor format (N, 1, H, W)
   n_samples <- length(X_valid)
@@ -140,14 +154,15 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   train_dl <- torch::dataloader(train_ds, batch_size = batch_size, shuffle = TRUE)
   
   # architecture
-  model <- create_simple_cnn()
+  model <- create_simple_cnn(dropout_rate = dropout_rate)
   
   # using luz to train the model
   fitted_model <- model %>%
     setup(
-      loss = nn_mse_loss(),
+      loss = loss_fn,
       optimizer = optim_adam
     ) %>%
+    set_opt_hparams(lr = learning_rate) %>%
     fit(
       data = train_dl,
       epochs = epochs,

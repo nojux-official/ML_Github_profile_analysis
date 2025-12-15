@@ -55,10 +55,13 @@ list(
   tar_target(data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
   
   tar_target(cnn_model_1, run_cnn_experiment(data_split, 1)),
-  
   tar_target(cnn_model_2, run_cnn_experiment(data_split, 2)),
+  tar_target(cnn_model_4, run_cnn_experiment(data_split, 4)),
+  tar_target(cnn_model_5, run_cnn_experiment(data_split, 8)),
+  tar_target(cnn_model_10, run_cnn_experiment(data_split, 10)),
+
   
-  tar_target(cnn_models, list(cnn_model_1, cnn_model_2)),
+  tar_target(cnn_models, list(cnn_model_1, cnn_model_2, cnn_model_4, cnn_model_5, cnn_model_10)),
   
   tar_target(single_img_prediction, {
     test_images <- list.files("test_images", pattern = "\\.png$", full.names = TRUE)
