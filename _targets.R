@@ -15,22 +15,28 @@ if("DET" %in% rownames(installed.packages()) == F)
   install.packages("https://cran.r-project.org/src/contrib/Archive/DET/DET_3.0.1.tar.gz", repos=NULL, type="source")
 if("future.apply" %in% rownames(installed.packages()) == F)
   install.packages("https://cran.r-project.org/src/contrib/future.apply_1.20.1.tar.gz", repos=NULL, type="source")
+if("crew" %in% rownames(installed.packages()) == F)
+  install.packages("crew")
 
-targetPackages <- c("tidyverse", "jsonlite", "tarchetypes",
+targetPackages <- c("tidyverse", "jsonlite", "tarchetypes", "EBImage",
     "torch", "luz", "torchvision", "torchdatasets", 
     "DT", "httr", "plumber", "shiny",
     "rmarkdown", "DET", "pROC", "ggplot2", "dplyr",
-    "lattice", "e1071", "caret", "future.apply")
+    "lattice", "e1071", "caret", "future.apply", "crew")
 
 pacman::p_load(char = targetPackages)
 
 torch::install_torch()
 library(targets)
+library(crew)
 
 
 lapply(list.files("./R", full.names = TRUE), source)
 options(tidyverse.quiet = TRUE)
-tar_option_set(packages = targetPackages)
+tar_option_set(
+  packages = targetPackages,
+  controller = crew::crew_controller_local(workers = 8)
+)
 
 # Targets pipeline
 list(
