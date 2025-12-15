@@ -31,15 +31,14 @@ This report presents the performance evaluation of the CNN image classification 
 ```{r model-config}
 targets::tar_load(cnn_models)
 
-# Create comparison table - cnn_models is a list from pattern mapping
-model_list <- if (is.list(cnn_models) && !is.data.frame(cnn_models)) {
-  if ("model_name" %in% names(cnn_models)) {
-    list(cnn_models)  # Single result, wrap it
-  } else {
-    cnn_models  # Multiple results from pattern
-  }
-} else {
+# Ensure cnn_models is a list of model_performance objects
+model_list <- if (is.list(cnn_models) && inherits(cnn_models[[1]], "model_performance")) {
+  cnn_models
+} else if (inherits(cnn_models, "model_performance")) {
   list(cnn_models)
+} else {
+  # Fallback: assume it's a list of lists
+  cnn_models
 }
 
 comparison_df <- data.frame(
@@ -102,46 +101,18 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 3. ROC Curve Analysis
+# 3. ROC and DET Curves
 
-## Test Data ROC Comparison
+```{r echo=FALSE, fig.width=12, fig.height=6}
+# Create DETs object from model_performance list
+model_dets <- create_dets_object(model_list)
 
-```{r roc-test-comparison}
-roc_data <- list()
-
-for (model_res in model_list) {
-  model_name <- paste0("Epochs_", model_res$epochs)
-  res <- model_res$test_results
-  if (!is.null(res)) {
-    # Ensure we have both classes
-    if (length(unique(res$actual)) > 1) {
-      tryCatch({
-        roc_obj <- pROC::roc(res$actual, res$probability, quiet = TRUE)
-        roc_data[[model_name]] <- roc_obj
-      }, error = function(e) {})
-    }
-  }
-}
-
-if (length(roc_data) > 0) {
-  ggroc(roc_data) +
-    geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), color="grey", linetype="dashed") +
-    theme_minimal() +
-    labs(title = "ROC Curves on Test Data", color = "Model")
+if (!is.null(model_dets)) {
+  par(pty="s", mfrow=c(1,2))
+  plotROCs(model_dets, xlim=c(0,1), ylab="True Positive Rate")
+  plot(model_dets, main="DET Curves")
 } else {
-  plot.new()
-  text(0.5, 0.5, "No valid results for ROC (need both classes)", cex = 1.5)
-}
-```
-
-```{r roc-stats}
-# Display detailed stats for the best model (highest AUC)
-if (exists("comparison_df") && nrow(comparison_df) > 0) {
-  best_model_idx <- which.max(comparison_df$Test_AUC)
-  if (length(best_model_idx) > 0) {
-    best_model_name <- comparison_df$Model[best_model_idx]
-    cat(paste("Best Model based on AUC:", best_model_name, "\n"))
-  }
+  cat("Unable to create DET curves - insufficient data\n")
 }
 ```
 
@@ -160,7 +131,7 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 4. Sample Predictions
+# 5. Sample Predictions
 
 ```{r sample}
 if (!is.null(predictions_df)) {
@@ -180,7 +151,7 @@ if (!is.null(predictions_df)) {
 
 ---
 
-# 5. Recommendations & Conclusions
+# 6. Recommendations & Conclusions
 
 ## Key Findings
 

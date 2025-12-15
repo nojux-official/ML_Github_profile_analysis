@@ -2,6 +2,50 @@ source("R/constants.R")
 library(ggplot2)
 library(dplyr)
 library(pROC)
+library(DET)
+
+# Helper to convert model_performance to DETs object for plotting
+create_dets_object <- function(model_performance_list) {
+  # Handle single model or list of models
+  if (inherits(model_performance_list, "model_performance")) {
+    model_list <- list(model_performance_list)
+  } else if (is.list(model_performance_list)) {
+    model_list <- model_performance_list
+  } else {
+    return(NULL)
+  }
+  
+  # Prepare data for detc
+  responses <- list()
+  predictors_list <- list()
+  names_list <- c()
+  
+  for (i in seq_along(model_list)) {
+    model <- model_list[[i]]
+    
+    if (!is.null(model$test_results) && length(unique(model$test_results$actual)) > 1) {
+      responses[[i]] <- factor(model$test_results$actual, levels = c(0, 1))
+      predictors_list[[i]] <- model$test_results$probability
+      names_list[i] <- paste0("Epochs_", model$epochs)
+    }
+  }
+  
+  if (length(responses) == 0) return(NULL)
+  
+  # Combine all predictors into a matrix
+  predictors_matrix <- do.call(cbind, predictors_list)
+  colnames(predictors_matrix) <- names_list
+  
+  # Create DETs object
+  dets_obj <- detc(
+    response = responses[[1]],
+    predictors = predictors_matrix,
+    names = names_list,
+    positive = "1"
+  )
+  
+  return(dets_obj)
+}
 
 # Helper to safely extract prediction data
 safe_extract_predictions <- function(data) {
@@ -194,4 +238,68 @@ plot_prediction_distribution <- function(data) {
     theme(plot.title = element_text(face = "bold"))
 }
 
+plot_det <- function(actual, predicted_probs) {
+  if (is.null(actual) || is.null(predicted_probs)) {
+    plot.new()
+    text(0.5, 0.5, "No data for DET plot", cex = 1.5)
+    return(NULL)
+  }
+  if (all(is.na(actual)) || length(unique(actual)) < 2) {
+    plot.new()
+    text(0.5, 0.5, "Insufficient class variance for DET plot", cex = 1.5)
+    return(NULL)
+  }
+  
+  tryCatch({
+    # Calculate DET curve manually using different thresholds
+    thresholds <- seq(0, 1, by = 0.01)
+    det_data <- data.frame()
+    
+    for (threshold in thresholds) {
+      pred_binary <- ifelse(predicted_probs >= threshold, 1, 0)
+      
+      # Calculate FNR and FPR
+      fn <- sum((pred_binary == 0) & (actual == 1), na.rm = TRUE)
+      tp <- sum((pred_binary == 1) & (actual == 1), na.rm = TRUE)
+      fp <- sum((pred_binary == 1) & (actual == 0), na.rm = TRUE)
+      tn <- sum((pred_binary == 0) & (actual == 0), na.rm = TRUE)
+      
+      # Miss Rate (False Negative Rate) and False Alarm Rate (False Positive Rate)
+      fnr <- if ((tp + fn) > 0) fn / (tp + fn) else NA
+      fpr <- if ((fp + tn) > 0) fp / (fp + tn) else NA
+      
+      det_data <- rbind(det_data, data.frame(
+        Threshold = threshold,
+        FNR = fnr * 100,
+        FPR = fpr * 100
+      ))
+    }
+    
+    # Remove NA values
+    det_data <- det_data[!is.na(det_data$FNR) & !is.na(det_data$FPR), ]
+    
+    # Create DET plot on log scale
+    p <- ggplot(det_data, aes(x = FPR, y = FNR)) +
+      geom_line(color = "#2E86AB", size = 1.2) +
+      geom_point(color = "#2E86AB", size = 2, alpha = 0.6) +
+      scale_x_log10(limits = c(0.1, 50)) +
+      scale_y_log10(limits = c(0.1, 50)) +
+      labs(
+        title = "DET Curve - Model Performance",
+        x = "False Alarm Rate (%)",
+        y = "Miss Rate (%)"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(face = "bold", size = 12),
+        panel.grid.major = element_line(color = "gray80"),
+        panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+      )
+    
+    return(p)
+  }, error = function(e) {
+    warning(paste("Error creating DET plot:", e$message))
+    return(NULL)
+  })
+}
 

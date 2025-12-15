@@ -415,15 +415,18 @@ run_cnn_experiment <- function(data_split, epochs, batch_size = 16, learning_rat
     data_split$test$targets
   )
   
-  return(list(
+  # Create model_performance object
+  model_perf <- list(
     epochs = epochs,
-    model = model_result$model,
-    model_name = model_name,
     train_results = model_result$results,
-    train_metrics = model_result$metrics,
-    train_accuracy = model_result$accuracy,
     test_results = test_result$results,
+    train_metrics = model_result$metrics,
     test_metrics = test_result$metrics,
+    model_name = model_name,
+    train_accuracy = model_result$accuracy,
     test_accuracy = test_result$accuracy
-  ))
+  )
+  class(model_perf) <- "model_performance"
+  
+  return(model_perf)
 }
