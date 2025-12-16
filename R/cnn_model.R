@@ -2,6 +2,14 @@ source("R/constants.R")
 library(torch)
 library(luz)
 
+
+   ##   #####   ####  #    # # ##### ######  ####  ##### #    # #####  ######
+  #  #  #    # #    # #    # #   #   #      #    #   #   #    # #    # #
+ #    # #    # #      ###### #   #   #####  #        #   #    # #    # #####
+ ###### #####  #      #    # #   #   #      #        #   #    # #####  #
+ #    # #   #  #    # #    # #   #   #      #    #   #   #    # #   #  #
+ #    # #    #  ####  #    # #   #   ######  ####    #    ####  #    # ######
+
 # Simple CNN for 6x6 grayscale image classification
 create_simple_cnn <- function(dropout_rate = cnn_dropout_rate) {
   nn_module(
@@ -83,6 +91,15 @@ prepare_pytorch_data <- function(image_dir, target_image_size = 6) {
   
   return(list(images = images_list, ids = image_ids))
 }
+
+
+
+ ##### #####    ##   # #    #
+   #   #    #  #  #  # ##   #
+   #   #    # #    # # # #  #
+   #   #####  ###### # #  # #
+   #   #   #  #    # # #   ##
+   #   #    # #    # # #    #
 
 # Build and train CNN using native R torch
 train_pytorch_cnn <- function(images_list, image_ids, targets, 
@@ -226,29 +243,143 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
   ))
 }
 
-save_model_to_disk <- function(model, save_dir = "static", model_name = "cnn_model") {
-  if (!dir.exists(save_dir)) {
-    dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
+ ####### ####### #       ######
+ #       #     # #       #     #
+ #       #     # #       #     #
+ #####   #     # #       #     #
+ #       #     # #       #     #
+ #       #     # #       #     #
+ #       ####### ####### ######
+
+# Run CNN experiment with 5-fold cross-validation
+run_cnn_experiment <- function(data_split, epochs, batch_size = 16, learning_rate = 0.001, threshold = cnn_train_threshold, n_folds = 5) {
+  model_name <- paste0("cnn_model_", epochs, "ep")
+  
+  # Combine train and test data for k-fold CV
+  all_images <- c(data_split$train$images, data_split$test$images)
+  all_ids <- c(data_split$train$ids, data_split$test$ids)
+  all_targets <- c(data_split$train$targets, data_split$test$targets)
+  
+  # Create fold indices
+  n_samples <- length(all_ids)
+  fold_indices <- cut(seq(1, n_samples), breaks = n_folds, labels = FALSE)
+  fold_indices <- fold_indices[sample(seq(1, n_samples))]  # Shuffle folds
+  
+  # Storage for cross-validation results
+  cv_train_results <- list()
+  cv_val_results <- list()
+  cv_train_metrics <- list()
+  cv_val_metrics <- list()
+  cv_models <- list()
+  
+  cat("Starting 5-fold cross-validation with", epochs, "epochs\n")
+  cat("Total samples:", n_samples, "\n\n")
+  
+  # Perform k-fold CV
+  for (fold in 1:n_folds) {
+    cat("=== Fold", fold, "of", n_folds, "===\n")
+    
+    # Create train/validation split for this fold
+    val_indices <- which(fold_indices == fold)
+    train_indices <- which(fold_indices != fold)
+    
+    fold_train_images <- all_images[train_indices]
+    fold_train_ids <- all_ids[train_indices]
+    fold_train_targets <- all_targets[train_indices]
+    
+    fold_val_images <- all_images[val_indices]
+    fold_val_ids <- all_ids[val_indices]
+    fold_val_targets <- all_targets[val_indices]
+    
+    cat("Train samples:", length(fold_train_ids), "| Validation samples:", length(fold_val_ids), "\n")
+    
+    # Train model on this fold
+    fold_model_name <- paste0(model_name, "_fold", fold)
+    fold_train_result <- train_pytorch_cnn(
+      images_list = fold_train_images,
+      image_ids = fold_train_ids,
+      targets = fold_train_targets,
+      epochs = epochs,
+      batch_size = batch_size,
+      learning_rate = learning_rate,
+      threshold = threshold,
+      model_name = fold_model_name
+    )
+    
+    # Evaluate on validation set
+    fold_val_result <- evaluate_model(
+      model = fold_train_result$model,
+      images_list = fold_val_images,
+      image_ids = fold_val_ids,
+      targets = fold_val_targets
+    )
+    
+    # Store results
+    cv_train_results[[fold]] <- fold_train_result$results
+    cv_val_results[[fold]] <- fold_val_result$results
+    cv_train_metrics[[fold]] <- fold_train_result$metrics
+    cv_val_metrics[[fold]] <- fold_val_result$metrics
+    cv_models[[fold]] <- fold_train_result$model
+    
+    cat("Train Accuracy:", round(fold_train_result$accuracy, 4), 
+        "| Validation Accuracy:", round(fold_val_result$accuracy, 4), "\n")
+    cat("Validation F1:", round(fold_val_result$metrics$f1, 4), "\n\n")
   }
   
-  model_path <- file.path(save_dir, paste0(model_name, ".pt"))
-  torch_save(model, model_path)
+  # Combine results across all folds
+  combined_val_results <- do.call(rbind, cv_val_results)
+  rownames(combined_val_results) <- NULL
   
-  cat("Model saved to:", model_path, "\n")
+  # Calculate aggregate metrics
+  all_train_accuracies <- sapply(cv_train_metrics, function(x) x$accuracy)
+  all_val_accuracies <- sapply(cv_val_metrics, function(x) x$accuracy)
+  all_val_f1s <- sapply(cv_val_metrics, function(x) x$f1)
   
-  return(model_path)
+  mean_train_acc <- mean(all_train_accuracies)
+  mean_val_acc <- mean(all_val_accuracies)
+  sd_val_acc <- sd(all_val_accuracies)
+  mean_val_f1 <- mean(all_val_f1s)
+  
+  cat("===== Cross-Validation Summary =====\n")
+  cat("Mean Train Accuracy:", round(mean_train_acc, 4), "\n")
+  cat("Mean Validation Accuracy:", round(mean_val_acc, 4), "±", round(sd_val_acc, 4), "\n")
+  cat("Mean Validation F1:", round(mean_val_f1, 4), "\n")
+  cat("Individual fold accuracies:", paste(round(all_val_accuracies, 4), collapse = ", "), "\n\n")
+  
+  # Create model_performance object with CV results
+  model_perf <- list(
+    epochs = epochs,
+    cv_train_results = cv_train_results,
+    cv_val_results = cv_val_results,
+    combined_val_results = combined_val_results,
+    cv_train_metrics = cv_train_metrics,
+    cv_val_metrics = cv_val_metrics,
+    cv_models = cv_models,
+    model_name = model_name,
+    n_folds = n_folds,
+    fold_accuracies = all_val_accuracies,
+    mean_train_accuracy = mean_train_acc,
+    mean_val_accuracy = mean_val_acc,
+    sd_val_accuracy = sd_val_acc,
+    mean_val_f1 = mean_val_f1,
+    train_accuracy = mean_train_acc,  # For backward compatibility
+    test_accuracy = mean_val_acc      # For backward compatibility
+  )
+  class(model_perf) <- "model_performance"
+  
+  return(model_perf)
 }
 
-load_model_from_disk <- function(model_path = "static/cnn_model.pt") {
-  if (!file.exists(model_path)) {
-    stop("Model file not found at: ", model_path)
-  }
-  
-  model <- torch_load(model_path)
-  cat("Model loaded from:", model_path, "\n")
-  
-  return(model)
-}
+
+
+ ###### #    #   ##   #      #    #   ##   ##### #  ####  #    #
+ #      #    #  #  #  #      #    #  #  #    #   # #    # ##   #
+ #####  #    # #    # #      #    # #    #   #   # #    # # #  #
+ #      #    # ###### #      #    # ######   #   # #    # #  # #
+ #       #  #  #    # #      #    # #    #   #   # #    # #   ##
+ ######   ##   #    # ######  ####  #    #   #   #  ####  #    #
+
+
 
 # Execute prediction on a single image
 predict_image <- function(model, image_path, target_image_size = 6, threshold = cnn_eval_threshold) {
@@ -375,121 +506,35 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
   ))
 }
 
-# Run CNN experiment with 5-fold cross-validation
-run_cnn_experiment <- function(data_split, epochs, batch_size = 16, learning_rate = 0.001, threshold = cnn_train_threshold, n_folds = 5) {
-  model_name <- paste0("cnn_model_", epochs, "ep")
-  
-  # Combine train and test data for k-fold CV
-  all_images <- c(data_split$train$images, data_split$test$images)
-  all_ids <- c(data_split$train$ids, data_split$test$ids)
-  all_targets <- c(data_split$train$targets, data_split$test$targets)
-  
-  # Create fold indices
-  n_samples <- length(all_ids)
-  fold_indices <- cut(seq(1, n_samples), breaks = n_folds, labels = FALSE)
-  fold_indices <- fold_indices[sample(seq(1, n_samples))]  # Shuffle folds
-  
-  # Storage for cross-validation results
-  cv_train_results <- list()
-  cv_val_results <- list()
-  cv_train_metrics <- list()
-  cv_val_metrics <- list()
-  cv_models <- list()
-  
-  cat("Starting 5-fold cross-validation with", epochs, "epochs\n")
-  cat("Total samples:", n_samples, "\n\n")
-  
-  # Perform k-fold CV
-  for (fold in 1:n_folds) {
-    cat("=== Fold", fold, "of", n_folds, "===\n")
-    
-    # Create train/validation split for this fold
-    val_indices <- which(fold_indices == fold)
-    train_indices <- which(fold_indices != fold)
-    
-    fold_train_images <- all_images[train_indices]
-    fold_train_ids <- all_ids[train_indices]
-    fold_train_targets <- all_targets[train_indices]
-    
-    fold_val_images <- all_images[val_indices]
-    fold_val_ids <- all_ids[val_indices]
-    fold_val_targets <- all_targets[val_indices]
-    
-    cat("Train samples:", length(fold_train_ids), "| Validation samples:", length(fold_val_ids), "\n")
-    
-    # Train model on this fold
-    fold_model_name <- paste0(model_name, "_fold", fold)
-    fold_train_result <- train_pytorch_cnn(
-      images_list = fold_train_images,
-      image_ids = fold_train_ids,
-      targets = fold_train_targets,
-      epochs = epochs,
-      batch_size = batch_size,
-      learning_rate = learning_rate,
-      threshold = threshold,
-      model_name = fold_model_name
-    )
-    
-    # Evaluate on validation set
-    fold_val_result <- evaluate_model(
-      model = fold_train_result$model,
-      images_list = fold_val_images,
-      image_ids = fold_val_ids,
-      targets = fold_val_targets
-    )
-    
-    # Store results
-    cv_train_results[[fold]] <- fold_train_result$results
-    cv_val_results[[fold]] <- fold_val_result$results
-    cv_train_metrics[[fold]] <- fold_train_result$metrics
-    cv_val_metrics[[fold]] <- fold_val_result$metrics
-    cv_models[[fold]] <- fold_train_result$model
-    
-    cat("Train Accuracy:", round(fold_train_result$accuracy, 4), 
-        "| Validation Accuracy:", round(fold_val_result$accuracy, 4), "\n")
-    cat("Validation F1:", round(fold_val_result$metrics$f1, 4), "\n\n")
+
+ ### #######
+  #  #     #
+  #  #     #
+  #  #     #
+  #  #     #
+  #  #     #
+ ### #######
+
+save_model_to_disk <- function(model, save_dir = "static", model_name = "cnn_model") {
+  if (!dir.exists(save_dir)) {
+    dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
   }
   
-  # Combine results across all folds
-  combined_val_results <- do.call(rbind, cv_val_results)
-  rownames(combined_val_results) <- NULL
+  model_path <- file.path(save_dir, paste0(model_name, ".pt"))
+  torch_save(model, model_path)
   
-  # Calculate aggregate metrics
-  all_train_accuracies <- sapply(cv_train_metrics, function(x) x$accuracy)
-  all_val_accuracies <- sapply(cv_val_metrics, function(x) x$accuracy)
-  all_val_f1s <- sapply(cv_val_metrics, function(x) x$f1)
+  cat("Model saved to:", model_path, "\n")
   
-  mean_train_acc <- mean(all_train_accuracies)
-  mean_val_acc <- mean(all_val_accuracies)
-  sd_val_acc <- sd(all_val_accuracies)
-  mean_val_f1 <- mean(all_val_f1s)
+  return(model_path)
+}
+
+load_model_from_disk <- function(model_path = "static/cnn_model.pt") {
+  if (!file.exists(model_path)) {
+    stop("Model file not found at: ", model_path)
+  }
   
-  cat("===== Cross-Validation Summary =====\n")
-  cat("Mean Train Accuracy:", round(mean_train_acc, 4), "\n")
-  cat("Mean Validation Accuracy:", round(mean_val_acc, 4), "±", round(sd_val_acc, 4), "\n")
-  cat("Mean Validation F1:", round(mean_val_f1, 4), "\n")
-  cat("Individual fold accuracies:", paste(round(all_val_accuracies, 4), collapse = ", "), "\n\n")
+  model <- torch_load(model_path)
+  cat("Model loaded from:", model_path, "\n")
   
-  # Create model_performance object with CV results
-  model_perf <- list(
-    epochs = epochs,
-    cv_train_results = cv_train_results,
-    cv_val_results = cv_val_results,
-    combined_val_results = combined_val_results,
-    cv_train_metrics = cv_train_metrics,
-    cv_val_metrics = cv_val_metrics,
-    cv_models = cv_models,
-    model_name = model_name,
-    n_folds = n_folds,
-    fold_accuracies = all_val_accuracies,
-    mean_train_accuracy = mean_train_acc,
-    mean_val_accuracy = mean_val_acc,
-    sd_val_accuracy = sd_val_acc,
-    mean_val_f1 = mean_val_f1,
-    train_accuracy = mean_train_acc,  # For backward compatibility
-    test_accuracy = mean_val_acc      # For backward compatibility
-  )
-  class(model_perf) <- "model_performance"
-  
-  return(model_perf)
+  return(model)
 }
