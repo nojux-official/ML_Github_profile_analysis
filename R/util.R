@@ -69,7 +69,9 @@ load_target_data <- function(filepath) {
 }
 
 # Split dataset into train and test
-split_dataset <- function(images_list, image_ids, targets, split_ratio = 0.8, seed = 123) {
+split_dataset <- function(images_list, image_ids, targets,
+                          tabular_df, pca_df,
+                          split_ratio = 0.7, seed = 123) {
   set.seed(seed)
   
   # Only consider samples that have targets
@@ -85,13 +87,17 @@ split_dataset <- function(images_list, image_ids, targets, split_ratio = 0.8, se
   train_data <- list(
     images = images_list[train_indices],
     ids = image_ids[train_indices],
-    targets = targets
+    targets = targets[image_ids[train_indices]],
+    tabular_df = tabular_df[train_indices, ],
+    pca_df = pca_df[train_indices, ]
   )
   
   test_data <- list(
     images = images_list[test_indices],
     ids = image_ids[test_indices],
-    targets = targets
+    targets = targets[image_ids[test_indices]],
+    tabular_df = tabular_df[test_indices, ],
+    pca_df = pca_df[test_indices, ]
   )
   
   return(list(train = train_data, test = test_data))

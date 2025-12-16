@@ -52,17 +52,30 @@ list(
   tar_target(git_features_images, apply_transformation(git_features_data)),
   tar_target(image_data, prepare_pytorch_data(git_features_images)),
   
-  tar_target(ext_data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
+  tar_target(ext_data_split, split_dataset(image_data$images, image_data$ids, target_labels,
+                                         tabular_df, tabular_pca_df,      
+                                         split_ratio = 0.8, seed = 123)),
   
   tar_target(cnn_model_2, run_cnn_experiment(ext_data_split, 2)),
   tar_target(cnn_model_4, run_cnn_experiment(ext_data_split, 4)),
   tar_target(cnn_model_8, run_cnn_experiment(ext_data_split, 8)),
 
-  tar_target(logistic_model, train_logistic_model(tabular_pca_df)),
-  
-  tar_target(model_results, list(cnn_model_2, cnn_model_4, cnn_model_8)),
-  
+  tar_target(logistic_model, train_logistic_model(ext_data_split$train$pca_df)),
 
+  tar_target(test_cnn_model_2, evaluate_model(cnn_model_2, ext_data_split$images, ext_data_split$ids, ext_data_split$targets)),
+  tar_target(test_cnn_model_4, evaluate_model(cnn_model_4, ext_data_split$images, ext_data_split$ids, ext_data_split$targets)),
+  tar_target(test_cnn_model_8, evaluate_model(cnn_model_8, ext_data_split$images, ext_data_split$ids, ext_data_split$targets))
+  # tar_target(test_logistic_model, evaluate_logistic_model(logistic_model, tabular_pca_df, ext_data_split$test)),
   
-  tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
+  # tar_target(
+  #   test_predictions,
+  #   generate_and_save_test_predictions(
+  #     list(cnn_model_2, cnn_model_4, cnn_model_8),
+  #     logistic_model,
+  #     ext_data_split,
+  #     output_file = "static/test_set_predictions.csv"
+  #   )
+  # )
+  
+  # tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
 )

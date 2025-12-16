@@ -292,7 +292,7 @@ predict_image <- function(model, image_path, target_image_size = 6, threshold = 
 }
 
 # Evaluate model on a dataset
-evaluate_model <- function(model, images_list, image_ids, targets, threshold = cnn_eval_threshold) {
+evaluate_model <- function(model, images_list, image_ids, targets, threshold = cnn_eval_threshold, keep_output = FALSE) {
   
   # Prepare data
   y_labels <- targets[image_ids]
@@ -306,7 +306,6 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
   y_valid <- as.numeric(y_labels[valid_indices])
   valid_ids <- image_ids[valid_indices]
   
-  # Ensure y_valid is binary (0 or 1)
   y_valid <- as.numeric(y_valid > 0)
   
   # Convert to tensor format (N, 1, H, W)
@@ -327,7 +326,7 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
   
   X_tensor <- torch_tensor(X_array, dtype = torch_float32())
   
-  # Make predictions
+  # Prediction
   model$eval()
   with_no_grad({
     predictions <- model(X_tensor)
@@ -337,7 +336,7 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
   predictions_prob <- 1 / (1 + exp(-predictions_numeric))
   pred_binary <- ifelse(predictions_prob > threshold, 1, 0)
   
-  # Calculate metrics
+  # Metrics
   accuracy <- mean(pred_binary == y_valid)
   
   tp <- sum((pred_binary == 1) & (y_valid == 1))
@@ -368,10 +367,15 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
     probability = predictions_prob
   )
   
+  if (keep_output) {
+    results$raw_output <- predictions_numeric
+  }
+  
   return(list(
     results = results,
     metrics = metrics,
-    accuracy = accuracy
+    accuracy = accuracy,
+    raw_outputs = if (keep_output) predictions_numeric else NULL
   ))
 }
 
