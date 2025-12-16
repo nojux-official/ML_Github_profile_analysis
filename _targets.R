@@ -62,7 +62,7 @@ list(
 
   tar_target(logistic_model, train_logistic_model(tabular_pca_df)),
   
-  tar_target(model_results, list(cnn_model_1, cnn_model_2, cnn_model_4, cnn_model_5, cnn_model_10, logistic_model)),
+  tar_target(model_results, list(cnn_model_1, cnn_model_2, cnn_model_4, cnn_model_5, cnn_model_10)),
   
 
   

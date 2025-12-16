@@ -29,16 +29,16 @@ This report presents the performance evaluation of the CNN image classification 
 # 1. Model Comparison
 
 ```{r model-config}
-targets::tar_load(cnn_models)
+targets::tar_load(model_results)
 
-# Ensure cnn_models is a list of model_performance objects
-model_list <- if (is.list(cnn_models) && inherits(cnn_models[[1]], "model_performance")) {
-  cnn_models
-} else if (inherits(cnn_models, "model_performance")) {
-  list(cnn_models)
+# Ensure model_results is a list of model_performance objects
+model_list <- if (is.list(model_results) && inherits(model_results[[1]], "model_performance")) {
+  model_results
+} else if (inherits(model_results, "model_performance")) {
+  list(model_results)
 } else {
   # Fallback: assume it's a list of lists
-  cnn_models
+  model_results
 }
 
 comparison_df <- data.frame(
@@ -85,30 +85,7 @@ if (exists("comparison_df") && nrow(comparison_df) > 0) {
 
 # 3. Prediction Summary
 
-```{r metrics}
-targets::tar_load(single_prediction)
-predictions_df <- safe_extract_predictions(single_prediction)
 
-if (!is.null(predictions_df)) {
-  summary_df <- data.frame(
-    Metric = c("Total Predictions", "Positive (1)", "Negative (0)", 
-               "Mean Probability", "Min Probability", "Max Probability"),
-    Value = c(
-      nrow(predictions_df),
-      sum(predictions_df$prediction, na.rm = TRUE),
-      sum(predictions_df$prediction == 0, na.rm = TRUE),
-      round(mean(predictions_df$probability, na.rm = TRUE), 4),
-      round(min(predictions_df$probability, na.rm = TRUE), 4),
-      round(max(predictions_df$probability, na.rm = TRUE), 4)
-    ),
-    stringsAsFactors = FALSE
-  )
-  
-  knitr::kable(summary_df, caption = "Prediction Summary Statistics")
-} else {
-  cat("No valid prediction data available.\n")
-}
-```
 
 ---
 
@@ -128,38 +105,6 @@ if (!is.null(model_dets)) {
 ```
 
 ---
-
-# 5. Prediction Probability Distribution
-
-```{r dist}
-if (!is.null(predictions_df)) {
-  plot_prediction_distribution(predictions_df)
-} else {
-  plot.new()
-  text(0.5, 0.5, "No data for distribution plot", cex = 1.5)
-}
-```
-
----
-
-# 6. Sample Predictions
-
-```{r sample}
-if (!is.null(predictions_df)) {
-  cols_to_show <- c("image_id", "prediction", "probability")
-  if ("raw_output" %in% names(predictions_df)) {
-    cols_to_show <- c(cols_to_show, "raw_output")
-  }
-  
-  knitr::kable(
-    head(predictions_df[, cols_to_show], 20),
-    caption = "Sample Predictions"
-  )
-} else {
-  cat("Cannot display predictions - data not in expected format\n")
-}
-```
-
 ---
 
 # 7. Recommendations & Conclusions

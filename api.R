@@ -31,7 +31,7 @@ function() {
 #* @get /report
 #* @serializer html list(type="text/html")
 function(res) {
-  report_path <- file.path("static", "cnn_model_report.html")
+  report_path <-  "cnn_model_report.html"
   
   if (!file.exists(report_path)) {
     res$status <- 404
