@@ -315,7 +315,7 @@ predict_logistic <- function(model, tabular_data) {
 }
 
 # Evaluate logistic model on a dataset
-evaluate_logistic_model <- function(model, tabular_df, threshold = 0.5) {
+evaluate_logistic_model <- function(model, tabular_df, threshold = logistic_eval_threshold, keep_output = FALSE) {
   
   # Prepare data
   tabular_df <- tabular_df[!is.na(tabular_df$target), ]
@@ -381,7 +381,8 @@ evaluate_logistic_model <- function(model, tabular_df, threshold = 0.5) {
   return(list(
     results = results,
     metrics = metrics,
-    accuracy = accuracy
+    accuracy = accuracy,
+    raw_outputs = if (keep_output) pred_binary else NULL
   ))
 }
 

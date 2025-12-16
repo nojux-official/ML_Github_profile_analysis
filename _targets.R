@@ -88,8 +88,7 @@ list(
   tar_target(test_logistic_model_2, {
       model <- load_model_from_disk(
           file.path('static', paste(logistic_model_2$model_name, '.pt', sep="")))
-      evaluate_logistic_model(model, ext_data_split$test$tabular_data,
-          ext_data_split$test$ids, ext_data_split$test$targets, keep_output = TRUE)
+      evaluate_logistic_model(model, ext_data_split$test$pca_df, keep_output = TRUE)
     }
   )
 
