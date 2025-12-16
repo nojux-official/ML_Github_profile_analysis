@@ -52,17 +52,15 @@ list(
   tar_target(git_features_images, apply_transformation(git_features_data)),
   tar_target(image_data, prepare_pytorch_data(git_features_images)),
   
-  tar_target(data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
+  tar_target(ext_data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
   
-  tar_target(cnn_model_1, run_cnn_experiment(data_split, 1)),
-  tar_target(cnn_model_2, run_cnn_experiment(data_split, 2)),
-  tar_target(cnn_model_4, run_cnn_experiment(data_split, 4)),
-  tar_target(cnn_model_5, run_cnn_experiment(data_split, 8)),
-  tar_target(cnn_model_10, run_cnn_experiment(data_split, 10)),
+  tar_target(cnn_model_2, run_cnn_experiment(ext_data_split, 2)),
+  tar_target(cnn_model_4, run_cnn_experiment(ext_data_split, 4)),
+  tar_target(cnn_model_8, run_cnn_experiment(ext_data_split, 8)),
 
   tar_target(logistic_model, train_logistic_model(tabular_pca_df)),
   
-  tar_target(model_results, list(cnn_model_1, cnn_model_2, cnn_model_4, cnn_model_5, cnn_model_10)),
+  tar_target(model_results, list(cnn_model_2, cnn_model_4, cnn_model_8)),
   
 
   
