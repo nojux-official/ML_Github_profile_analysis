@@ -4,4 +4,6 @@ model_save_dir <- "static/"
 cnn_train_threshold <- 0.6
 cnn_eval_threshold <- 0.6
 cnn_dropout_rate <- 0.3
+logistic_train_threshold <- 0.5
+logistic_eval_threshold <- 0.5
 api_cache_dir <- "cache/"

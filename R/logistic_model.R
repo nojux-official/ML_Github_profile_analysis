@@ -38,7 +38,7 @@ create_logistic_model <- function(input_dim) {
 
 # Train logistic model on a single fold
 train_logistic_model <- function(tabular_df, epochs = 100, batch_size = 32, learning_rate = 0.001, 
-                                 weight_decay = 0.01, threshold = 0.5, model_name = "logistic_model", 
+                                 weight_decay = 0.01, threshold = logistic_train_threshold, model_name = "logistic_model", 
                                  save_dir = model_save_dir) {
   feature_cols <- setdiff(colnames(tabular_df), c("id", "target"))
   
@@ -166,7 +166,7 @@ train_logistic_model <- function(tabular_df, epochs = 100, batch_size = 32, lear
 
 # Run logistic regression experiment with 5-fold cross-validation
 run_logistic_experiment <- function(data_split, epochs = 100, batch_size = 32, learning_rate = 0.001, 
-                                    threshold = 0.5, n_folds = 5) {
+                                    threshold = logistic_train_threshold, n_folds = 5) {
   model_name <- paste0("logistic_model_", epochs, "ep")
   
   # Combine train and test data for k-fold CV
