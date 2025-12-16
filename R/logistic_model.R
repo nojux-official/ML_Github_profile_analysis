@@ -126,12 +126,19 @@ train_logistic_model <- function(tabular_df, epochs = 100, batch_size = 32, lear
     2 * (precision * sensitivity) / (precision + sensitivity)
   } else 0
   
+  # Calculate Cohen's Kappa
+  po <- accuracy  # Observed accuracy
+  pe <- ((tp + fp) / length(y_data)) * ((tp + fn) / length(y_data)) +
+        ((tn + fn) / length(y_data)) * ((tn + fp) / length(y_data))
+  kappa <- if (pe < 1) (po - pe) / (1 - pe) else 0
+  
   metrics <- list(
     accuracy = accuracy,
     sensitivity = sensitivity,
     specificity = specificity,
     precision = precision,
     f1 = f1,
+    kappa = kappa,
     tp = tp, tn = tn, fp = fp, fn = fn
   )
   
@@ -362,12 +369,19 @@ evaluate_logistic_model <- function(model, tabular_df, threshold = logistic_eval
     2 * (precision * sensitivity) / (precision + sensitivity)
   } else 0
   
+  # Calculate Cohen's Kappa
+  po <- accuracy  # Observed accuracy
+  pe <- ((tp + fp) / length(y_data)) * ((tp + fn) / length(y_data)) +
+        ((tn + fn) / length(y_data)) * ((tn + fp) / length(y_data))
+  kappa <- if (pe < 1) (po - pe) / (1 - pe) else 0
+  
   metrics <- list(
     accuracy = accuracy,
     sensitivity = sensitivity,
     specificity = specificity,
     precision = precision,
     f1 = f1,
+    kappa = kappa,
     tp = tp, tn = tn, fp = fp, fn = fn
   )
   

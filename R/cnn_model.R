@@ -216,12 +216,19 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
     2 * (precision * sensitivity) / (precision + sensitivity)
   } else 0
   
+  # Calculate Cohen's Kappa
+  po <- accuracy  # Observed accuracy
+  pe <- ((tp + fp) / length(y_valid)) * ((tp + fn) / length(y_valid)) +
+        ((tn + fn) / length(y_valid)) * ((tn + fp) / length(y_valid))
+  kappa <- if (pe < 1) (po - pe) / (1 - pe) else 0
+  
   metrics <- list(
     accuracy = accuracy,
     sensitivity = sensitivity,
     specificity = specificity,
     precision = precision,
     f1 = f1,
+    kappa = kappa,
     tp = tp, tn = tn, fp = fp, fn = fn
   )
   
@@ -482,12 +489,19 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
     2 * (precision * sensitivity) / (precision + sensitivity)
   } else 0
   
+  # Calculate Cohen's Kappa
+  po <- accuracy  # Observed accuracy
+  pe <- ((tp + fp) / length(y_valid)) * ((tp + fn) / length(y_valid)) +
+        ((tn + fn) / length(y_valid)) * ((tn + fp) / length(y_valid))
+  kappa <- if (pe < 1) (po - pe) / (1 - pe) else 0
+  
   metrics <- list(
     accuracy = accuracy,
     sensitivity = sensitivity,
     specificity = specificity,
     precision = precision,
     f1 = f1,
+    kappa = kappa,
     tp = tp, tn = tn, fp = fp, fn = fn
   )
   
