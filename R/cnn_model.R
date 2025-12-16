@@ -252,7 +252,7 @@ train_pytorch_cnn <- function(images_list, image_ids, targets,
  #       ####### ####### ######
 
 # Run CNN experiment with 5-fold cross-validation
-run_cnn_experiment <- function(data_split, epochs, batch_size = 16, learning_rate = 0.001, threshold = cnn_train_threshold, n_folds = 1) {
+run_cnn_experiment <- function(data_split, epochs, batch_size = 16, learning_rate = 0.001, threshold = cnn_train_threshold, n_folds = 5) {
   model_name <- paste0("cnn_model_", epochs, "ep")
   
   # Combine train and test data for k-fold CV
