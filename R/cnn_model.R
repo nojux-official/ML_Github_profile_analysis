@@ -367,15 +367,11 @@ evaluate_model <- function(model, images_list, image_ids, targets, threshold = c
     probability = predictions_prob
   )
   
-  if (keep_output) {
-    results$raw_output <- predictions_numeric
-  }
-  
   return(list(
     results = results,
     metrics = metrics,
     accuracy = accuracy,
-    raw_outputs = if (keep_output) predictions_numeric else NULL
+    raw_outputs = if (keep_output) pred_binary else NULL
   ))
 }
 

@@ -62,9 +62,15 @@ list(
 
   tar_target(logistic_model, train_logistic_model(ext_data_split$train$pca_df)),
 
-  tar_target(test_cnn_model_2, evaluate_model(cnn_model_2, ext_data_split$images, ext_data_split$ids, ext_data_split$targets)),
-  tar_target(test_cnn_model_4, evaluate_model(cnn_model_4, ext_data_split$images, ext_data_split$ids, ext_data_split$targets)),
-  tar_target(test_cnn_model_8, evaluate_model(cnn_model_8, ext_data_split$images, ext_data_split$ids, ext_data_split$targets))
+  tar_target(test_cnn_model_2, {
+      model <- load_model_from_disk(
+          file.path('static', paste(cnn_model_2$model_name, '.pt', sep="")))
+      evaluate_model(model, ext_data_split$test$images,
+          ext_data_split$test$ids, ext_data_split$test$targets, keep_output = TRUE)
+    }
+  )
+  # tar_target(test_cnn_model_4, evaluate_model(cnn_model_4$cv_models[[1]], ext_data_split$test$images, ext_data_split$test$ids, ext_data_split$test$targets)),
+  # tar_target(test_cnn_model_8, evaluate_model(cnn_model_8$cv_models[[1]], ext_data_split$test$images, ext_data_split$test$ids, ext_data_split$test$targets))
   # tar_target(test_logistic_model, evaluate_logistic_model(logistic_model, tabular_pca_df, ext_data_split$test)),
   
   # tar_target(
