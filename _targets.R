@@ -45,11 +45,11 @@ list(
   tar_target(f_musae_git_edges, "dataset/musae_git_edges.csv", format = "file"),
   
   tar_target(git_features_data, load_json_features(f_musae_git_features)),
+  tar_target(target_labels, load_target_data(f_musae_git_target)),
+  tar_target(tabular_df, prepare_tabular(git_features_data, target_labels)),
+  tar_target(tabular_pca_df, apply_pca(tabular_df)),
   
   tar_target(git_features_images, apply_transformation(git_features_data)),
-  
-  tar_target(target_labels, load_target_data(f_musae_git_target)),
-  
   tar_target(image_data, prepare_pytorch_data(git_features_images)),
   
   tar_target(data_split, split_dataset(image_data$images, image_data$ids, target_labels)),
