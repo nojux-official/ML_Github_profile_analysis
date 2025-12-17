@@ -23,10 +23,21 @@ create_dets_object <- function(model_performance_list) {
   for (i in seq_along(model_list)) {
     model <- model_list[[i]]
     
-    if (!is.null(model$test_results) && length(unique(model$test_results$actual)) > 1) {
-      responses[[i]] <- factor(model$test_results$actual, levels = c(0, 1))
-      predictors_list[[i]] <- model$test_results$probability
-      names_list[i] <- paste0("Epochs_", model$epochs)
+    # Handle different result structures
+    results_df <- if (!is.null(model$results)) model$results else model$test_results
+    
+    if (!is.null(results_df) && length(unique(results_df$actual)) > 1) {
+      responses[[i]] <- factor(results_df$actual, levels = c(0, 1))
+      predictors_list[[i]] <- results_df$probability
+      
+      # Determine model name
+      if (!is.null(model$name)) {
+        names_list[i] <- model$name
+      } else if (!is.null(model$epochs)) {
+        names_list[i] <- paste0("Epochs_", model$epochs)
+      } else {
+        names_list[i] <- paste0("Model_", i)
+      }
     }
   }
   

@@ -110,7 +110,7 @@ list(
       cnn_model_names = c("CNN_2ep", "CNN_4ep"),
       logistic_model_names = c("Logistic_2ep", "Logistic_4ep")
     )
-  )
+  ),
   
-  # tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
+  tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
 )

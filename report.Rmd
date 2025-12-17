@@ -29,27 +29,26 @@ This report presents the performance evaluation of the CNN image classification 
 # 1. Model Comparison
 
 ```{r model-config}
-targets::tar_load(model_results)
+targets::tar_load(c(test_cnn_model_2, test_cnn_model_4, test_logistic_model_2, test_logistic_model_4))
 
-# Ensure model_results is a list of model_performance objects
-model_list <- if (is.list(model_results) && inherits(model_results[[1]], "model_performance")) {
-  model_results
-} else if (inherits(model_results, "model_performance")) {
-  list(model_results)
-} else {
-  # Fallback: assume it's a list of lists
-  model_results
-}
+# Create a named list of models
+model_list <- list(
+  CNN_2ep = c(test_cnn_model_2, list(name = "CNN_2ep")),
+  CNN_4ep = c(test_cnn_model_4, list(name = "CNN_4ep")),
+  Logistic_2ep = c(test_logistic_model_2, list(name = "Logistic_2ep")),
+  Logistic_4ep = c(test_logistic_model_4, list(name = "Logistic_4ep"))
+)
 
 comparison_df <- data.frame(
-  Model = sapply(model_list, function(x) paste0("Epochs_", x$epochs)),
-  Train_Accuracy = sapply(model_list, function(x) x$train_accuracy),
-  Test_Accuracy = sapply(model_list, function(x) x$test_accuracy),
-  Test_F1 = sapply(model_list, function(x) x$test_metrics$f1),
-  Test_AUC = sapply(model_list, function(x) {
-    if (!is.null(x$test_results)) {
+  Model = sapply(model_list, function(x) x$name),
+  Accuracy = sapply(model_list, function(x) x$metrics$accuracy),
+  F1_Score = sapply(model_list, function(x) x$metrics$f1),
+  Kappa = sapply(model_list, function(x) x$metrics$kappa),
+  AUC = sapply(model_list, function(x) {
+    results_df <- if (!is.null(x$results)) x$results else x$test_results
+    if (!is.null(results_df)) {
       tryCatch({
-        roc_obj <- pROC::roc(x$test_results$actual, x$test_results$probability, quiet = TRUE)
+        roc_obj <- pROC::roc(results_df$actual, results_df$probability, quiet = TRUE)
         as.numeric(pROC::auc(roc_obj))
       }, error = function(e) NA)
     } else {
@@ -58,7 +57,7 @@ comparison_df <- data.frame(
   })
 )
 
-knitr::kable(comparison_df, caption = "Model Performance Comparison by Epochs")
+knitr::kable(comparison_df, caption = "Model Performance Comparison")
 ```
 
 ---
@@ -66,17 +65,18 @@ knitr::kable(comparison_df, caption = "Model Performance Comparison by Epochs")
 # 2. Confusion Matrix Analysis
 
 ```{r confusion-matrix, fig.width=8, fig.height=6}
-# Display confusion matrix for the best model
-if (exists("comparison_df") && nrow(comparison_df) > 0) {
-  best_model_idx <- which.max(comparison_df$Test_AUC)
-  best_model <- model_list[[best_model_idx]]
-  
-  if (!is.null(best_model$test_results)) {
-    cm_plot <- plot_confusion_matrix(best_model$test_results$actual, best_model$test_results$predicted)
-    print(cm_plot)
-  } else {
-    plot.new()
-    text(0.5, 0.5, "No test results for Confusion Matrix", cex = 1.5)
+# Display confusion matrix for each model
+if (exists("model_list") && length(model_list) > 0) {
+  for (i in seq_along(model_list)) {
+    model <- model_list[[i]]
+    results_df <- if (!is.null(model$results)) model$results else model$test_results
+    
+    if (!is.null(results_df)) {
+      cm_plot <- plot_confusion_matrix(results_df$actual, results_df$predicted)
+      cm_plot <- cm_plot + ggtitle(paste("Confusion Matrix:", model$name))
+      print(cm_plot)
+      cat("\n\n") # Add spacing between plots
+    }
   }
 }
 ```
