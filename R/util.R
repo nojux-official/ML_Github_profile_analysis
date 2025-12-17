@@ -68,36 +68,43 @@ load_target_data <- function(filepath) {
   return(target_vector)
 }
 
-# Split dataset into train and test
+# Split dataset into train and test (Deterministic split by ID)
 split_dataset <- function(images_list, image_ids, targets,
                           tabular_df, pca_df,
                           split_ratio = 0.7, seed = 123) {
-  set.seed(seed)
+  # Seed kept for compatibility
   
   # Only consider samples that have targets
   valid_indices <- which(image_ids %in% names(targets))
-  valid_ids <- image_ids[valid_indices]
+  
+  # Sort valid indices by numeric ID to ensure deterministic split
+  valid_indices <- valid_indices[order(as.numeric(image_ids[valid_indices]))]
   
   n_samples <- length(valid_indices)
   n_train <- floor(n_samples * split_ratio)
   
-  train_indices <- sample(valid_indices, n_train)
-  test_indices <- setdiff(valid_indices, train_indices)
+  # Deterministic split: first n_train are train, rest are test
+  train_indices <- valid_indices[1:n_train]
+  test_indices <- valid_indices[(n_train + 1):n_samples]
+  
+  sort_df_by_id <- function(df) {
+    df[order(as.numeric(df$id)), ]
+  }
   
   train_data <- list(
     images = images_list[train_indices],
     ids = image_ids[train_indices],
     targets = targets[image_ids[train_indices]],
-    tabular_df = tabular_df[train_indices, ],
-    pca_df = pca_df[train_indices, ]
+    tabular_df = sort_df_by_id(tabular_df[tabular_df$id %in% image_ids[train_indices], ]),
+    pca_df = sort_df_by_id(pca_df[pca_df$id %in% image_ids[train_indices], ])
   )
   
   test_data <- list(
     images = images_list[test_indices],
     ids = image_ids[test_indices],
     targets = targets[image_ids[test_indices]],
-    tabular_df = tabular_df[test_indices, ],
-    pca_df = pca_df[test_indices, ]
+    tabular_df = sort_df_by_id(tabular_df[tabular_df$id %in% image_ids[test_indices], ]),
+    pca_df = sort_df_by_id(pca_df[pca_df$id %in% image_ids[test_indices], ])
   )
   
   return(list(train = train_data, test = test_data))
