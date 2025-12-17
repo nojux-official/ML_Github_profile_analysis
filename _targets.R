@@ -35,7 +35,7 @@ lapply(list.files("./R", full.names = TRUE), source)
 options(tidyverse.quiet = TRUE)
 tar_option_set(
   packages = targetPackages,
-  controller = crew::crew_controller_local(workers = 8)
+  controller = crew::crew_controller_local(workers = 2)
 )
 
 # Targets pipeline
@@ -58,9 +58,10 @@ list(
   
   tar_target(cnn_model_2, run_cnn_experiment(ext_data_split, 2)),
   tar_target(cnn_model_4, run_cnn_experiment(ext_data_split, 4)),
-  tar_target(cnn_model_8, run_cnn_experiment(ext_data_split, 8)),
+  # tar_target(cnn_model_8, run_cnn_experiment(ext_data_split, 8)),
 
   tar_target(logistic_model_2, run_logistic_experiment(ext_data_split, epochs = 2)),
+  tar_target(logistic_model_4, run_logistic_experiment(ext_data_split, epochs = 4)),
 
   tar_target(test_cnn_model_2, {
       model <- load_model_from_disk(
@@ -76,13 +77,13 @@ list(
           ext_data_split$test$ids, ext_data_split$test$targets, keep_output = TRUE)
     }
   ),
-  tar_target(test_cnn_model_8, {
-      model <- load_model_from_disk(
-          file.path('static', paste(cnn_model_8$model_name, '.pt', sep="")))
-      evaluate_model(model, ext_data_split$test$images,
-          ext_data_split$test$ids, ext_data_split$test$targets, keep_output = TRUE)
-    }
-  ),
+  # tar_target(test_cnn_model_8, {
+  #     model <- load_model_from_disk(
+  #         file.path('static', paste(cnn_model_8$model_name, '.pt', sep="")))
+  #     evaluate_model(model, ext_data_split$test$images,
+  #         ext_data_split$test$ids, ext_data_split$test$targets, keep_output = TRUE)
+  #   }
+  # ),
 
 
   tar_target(test_logistic_model_2, {
@@ -90,18 +91,24 @@ list(
           file.path('static', paste(logistic_model_2$model_name, '.pt', sep="")))
       evaluate_logistic_model(model, ext_data_split$test$pca_df, keep_output = TRUE)
     }
-  )
+  ),
+  tar_target(test_logistic_model_4, {
+      model <- load_model_from_disk(
+          file.path('static', paste(logistic_model_4$model_name, '.pt', sep="")))
+      evaluate_logistic_model(model, ext_data_split$test$pca_df, keep_output = TRUE)
+    }
+  ),
 
   
-  # tar_target(
-  #   test_predictions,
-  #   generate_and_save_test_predictions(
-  #     list(cnn_model_2, cnn_model_4, cnn_model_8),
-  #     logistic_model,
-  #     ext_data_split,
-  #     output_file = "static/test_set_predictions.csv"
-  #   )
-  # )
+  tar_target(
+    test_predictions,
+    generate_and_save_test_predictions(
+      list(test_cnn_model_2, test_cnn_model_4),
+      list(test_logistic_model_2, test_logistic_model_4),
+      ext_data_split,
+      output_file = "static/test_set_predictions.csv"
+    )
+  )
   
   # tar_render(report, "report.Rmd", output_file = "static/cnn_model_report.html")
 )
