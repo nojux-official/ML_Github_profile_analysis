@@ -4,7 +4,7 @@ library(torch)
 # Generate and save test set predictions for all models
 # This function expects lists of evaluation results (from evaluate_model/evaluate_logistic_model)
 # which contain 'results' dataframes with 'id', 'actual', 'predicted', 'probability'
-generate_and_save_test_predictions <- function(cnn_results_list, logistic_results_list, test_split, output_file = "static/test_set_predictions.csv") {
+generate_and_save_test_predictions <- function(cnn_results_list, logistic_results_list, test_split, output_file = "static/test_set_predictions.csv", cnn_model_names = NULL, logistic_model_names = NULL) {
   
   cat(strrep("=", 70), "\n")
   cat("AGGREGATING TEST SET PREDICTIONS\n")
@@ -30,7 +30,12 @@ generate_and_save_test_predictions <- function(cnn_results_list, logistic_result
   # Process CNN results
   for (i in seq_along(cnn_results_list)) {
     res <- cnn_results_list[[i]]
-    model_name <- paste0("CNN_Model_", i)
+    
+    if (!is.null(cnn_model_names) && length(cnn_model_names) >= i) {
+      model_name <- cnn_model_names[i]
+    } else {
+      model_name <- paste0("CNN_Model_", i)
+    }
     
     if (!is.null(res) && !is.null(res$results)) {
       # Extract ID and Probability
@@ -45,7 +50,12 @@ generate_and_save_test_predictions <- function(cnn_results_list, logistic_result
   # Process Logistic results
   for (i in seq_along(logistic_results_list)) {
     res <- logistic_results_list[[i]]
-    model_name <- paste0("Logistic_Model_", i)
+    
+    if (!is.null(logistic_model_names) && length(logistic_model_names) >= i) {
+      model_name <- logistic_model_names[i]
+    } else {
+      model_name <- paste0("Logistic_Model_", i)
+    }
     
     if (!is.null(res) && !is.null(res$results)) {
       # Extract ID and Probability

@@ -106,7 +106,9 @@ list(
       list(test_cnn_model_2, test_cnn_model_4),
       list(test_logistic_model_2, test_logistic_model_4),
       ext_data_split,
-      output_file = "static/test_set_predictions.csv"
+      output_file = "static/test_set_predictions.csv",
+      cnn_model_names = c("CNN_2ep", "CNN_4ep"),
+      logistic_model_names = c("Logistic_2ep", "Logistic_4ep")
     )
   )
   
